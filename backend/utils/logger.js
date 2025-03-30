@@ -1,5 +1,20 @@
 const winston = require('winston');
 
+// Function to handle circular references in JSON.stringify
+const safeStringify = (obj) => {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (key, value) => {
+    // Skip circular references
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]';
+      }
+      seen.add(value);
+    }
+    return value;
+  }, 2);
+};
+
 // Define log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -21,7 +36,7 @@ const logger = winston.createLogger({
         winston.format.printf(
           ({ level, message, timestamp, ...meta }) => {
             return `${timestamp} ${level}: ${message} ${
-              Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''
+              Object.keys(meta).length ? safeStringify(meta) : ''
             }`;
           }
         )
