@@ -1,0 +1,76 @@
+services:
+  server:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:5000"
+    volumes:
+      - /home/uploads:/app/uploads
+    environment:
+      - MONGO_URI=mongodb://localhost:27017/syllabuzz
+    depends_on:
+      - mongo
+
+  backend:
+    build: 
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:5000"
+    volumes:
+      - /home/uploads:/app/uploads
+    environment:
+      - MONGO_URI=mongodb://localhost:27017/syllabuzz
+    depends_on:
+      - mongo
+
+  client:
+    container_name: client
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      VITE_NODE_ENV: production
+      VITE_SERVER_URL: https://server.tapnplay.site
+    depends_on:
+      - server
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    volumes:
+      - /home/mongo-data:/data/db
+
+
+  proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - /home/proxy-manager/data:/data
+      - /home/proxy-manager/letsencrypt:/etc/letsencrypt
+
+
+volumes:
+  uploads:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/uploads
+
+  mongo-data:
+    driver: local
+
+  
+
+      
+  
+
+

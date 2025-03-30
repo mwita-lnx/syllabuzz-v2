@@ -162,7 +162,7 @@ const createRoom = async (req, res) => {
     const { name, description, unit_id, unit_code, faculty_code, topic, tags } = req.body;
     
     // Validate required fields
-    if (!name || !unit_id || !unit_code || !topic) {
+    if (!name  || !topic) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: name, unit_id, unit_code, and topic are required'

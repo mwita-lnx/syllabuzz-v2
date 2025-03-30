@@ -2,6 +2,7 @@
 export interface User {
     id?: string;
     userId: string;
+    user_id?: string;
     name: string;
     email?: string;
     role?: string;
@@ -41,7 +42,9 @@ export interface User {
   export interface ChatMessage {
     id: string;
     userId: string;
+    user_id?: string;
     userName: string;
+    user_name?: string
     userAvatar?: string;
     content: string;
     timestamp: string;
