@@ -17,7 +17,7 @@ services:
       context: ./server
       dockerfile: Dockerfile
     ports:
-      - "3001:5000"
+      - "3002:3000"
     volumes:
       - /home/uploads:/app/uploads
     environment:
@@ -28,10 +28,10 @@ services:
   client:
     container_name: client
     build:
-      context: ./admin
+      context: ./client
       dockerfile: Dockerfile
     ports:
-      - "3002:3000"
+      - "3000:5173"
     environment:
       VITE_NODE_ENV: production
       VITE_SERVER_URL: https://server.tapnplay.site

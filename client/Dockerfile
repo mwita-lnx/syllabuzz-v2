@@ -4,10 +4,10 @@ WORKDIR /app
 
 COPY package.json .
 COPY . .
-
+RUN npm install
 RUN npm ci
 
-RUN npm install
+
 RUN npm i -g serve
 COPY . .
 
