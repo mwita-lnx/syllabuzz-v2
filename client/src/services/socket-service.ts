@@ -10,7 +10,8 @@ import {
 } from '../types/index3';
 
 // Socket.io server URL - replace with environment variable in production
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = process.env.VITE_BACKEND_URL || 'http://localhost:3000';
+console.log('Socket URL:', SOCKET_URL);
 
 let socket: Socket | null = null;
 let isInitializing = false;

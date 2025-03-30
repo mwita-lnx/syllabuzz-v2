@@ -1,4 +1,11 @@
 services:
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    volumes:
+      - /home/mongo-data:/data/db
   server:
     build: 
       context: ./server
@@ -8,7 +15,7 @@ services:
     volumes:
       - /home/uploads:/app/uploads
     environment:
-      - MONGO_URI=mongodb://localhost:27017/syllabuzz
+      - MONGO_URI=mongodb://mongo:27017/syllabuzz
     depends_on:
       - mongo
 
@@ -21,7 +28,7 @@ services:
     volumes:
       - /home/uploads:/app/uploads
     environment:
-      - MONGO_URI=mongodb://localhost:27017/syllabuzz
+      - MONGO_URI=mongodb://mongo:27017/syllabuzz
     depends_on:
       - mongo
 
@@ -34,16 +41,11 @@ services:
       - "3000:5173"
     environment:
       VITE_NODE_ENV: production
-      VITE_SERVER_URL: https://server.tapnplay.site
+      VITE_SERVER_URL: https://server.syllabuzz.buzz
+      VITE_BACKEND_URL: https://backend.syllabuzz.buzz
     depends_on:
       - server
 
-  mongo:
-    image: mongo:latest
-    ports:
-      - 27017:27017
-    volumes:
-      - /home/mongo-data:/data/db
 
 
   proxy-manager:

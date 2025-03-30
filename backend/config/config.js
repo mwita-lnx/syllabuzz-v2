@@ -24,7 +24,7 @@ const environments = {
     logLevel: process.env.LOG_LEVEL || 'error'
   },
   production: {
-    mongoUri: process.env.MONGO_URI,
+    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/syllabuzz',
     jwtSecret: process.env.JWT_SECRET,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
     port: process.env.PORT || 3000,

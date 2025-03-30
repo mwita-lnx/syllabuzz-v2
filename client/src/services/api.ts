@@ -1,7 +1,7 @@
 // src/services/api.ts
 import { ApiResponse } from '../types';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.VITE_SERVER_URL || 'http://localhost:5000/api';
 
 // Helper function to handle API responses
 const handleResponse = async <T>(response: Response): Promise<T> => {
