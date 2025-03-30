@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 env:
-  EC2_HOST: ec2-3-139-169-136.us-east-2.compute.amazonaws.com
+  EC2_HOST: 20.189.112.156
 
 jobs:
   deploy:
