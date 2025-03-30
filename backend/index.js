@@ -71,12 +71,13 @@ async function startServer() {
     
     // Start server
     const port = config.port || process.env.PORT || 3000;
-    server.listen(port, () => {
-      logger.info(`Server running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
-      console.log(`Server running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
-      console.log(`Socket.IO server available at http://localhost:${port}`);
-      console.log(`JWT_SECRET is ${process.env.JWT_SECRET ? 'configured' : 'using default dev-secret-key'}`);
-    });
+    // Change this part in your startServer function
+server.listen(port, '0.0.0.0', () => {
+  logger.info(`Server running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`Server running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`Socket.IO server available at http://0.0.0.0:${port}`);
+  console.log(`JWT_SECRET is ${process.env.JWT_SECRET ? 'configured' : 'using default dev-secret-key'}`);
+});
     
   } catch (err) {
     console.error('Failed to start server:', err);
