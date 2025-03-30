@@ -9,7 +9,7 @@ import axios from "axios";
 
 // Configure axios with base URL
 const api = axios.create({
-  baseURL: "http://localhost:5000",
+  baseURL: import.meta.env.VITE_SERVER_URL || "http://localhost:5000",
 });
 
 // Define types for auth state and context
