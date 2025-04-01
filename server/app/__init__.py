@@ -6,11 +6,15 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from werkzeug.exceptions import HTTPException
+import requests
 
 # Initialize extensions
 mongo = PyMongo()
 
 upload_folder = os.path.join(os.path.dirname(__file__), '../uploads')
+
+QDRANT_HOST = os.getenv('QDRANT_HOST', 'localhost')
+QDRANT_PORT = os.getenv('QDRANT_PORT', '6333')
 
 
 def create_app(config_class=Config):
@@ -74,13 +78,30 @@ def create_app(config_class=Config):
             "message": "An unexpected error occurred",
         }), 500
     
-    # Health check endpoint
-    @app.route('/api/health')
+    # qdrant_check , flask_check ,mongo_check
+    @app.route('/health/services', methods=['GET'])
     def health_check():
         """Health check endpoint"""
-        return jsonify({
-            "status": "success",
-            "message": "Notes API is running"
-        })
-    
-    return app
+        try:
+            # Check Qdrant connection
+            qdrant_response = requests.get(f'http://{QDRANT_HOST}:{QDRANT_PORT}/collections')
+            if qdrant_response.status_code != 200:
+                raise Exception("Qdrant is not reachable")
+            
+            # Check MongoDB connection
+            mongo.db.command('ping')
+            
+            return jsonify({
+                "status": "success",
+                "message": "All services are up and running"
+            }), 200
+        
+        except Exception as e:
+            app.logger.error(f"Health check failed: {str(e)}")
+            return jsonify({
+                "status": "error",
+                "message": str(e)
+            }), 500
+
+
+

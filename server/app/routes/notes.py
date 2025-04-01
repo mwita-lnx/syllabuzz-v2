@@ -11,7 +11,7 @@ import jwt
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, PointIdsList, MatchAny
 import fitz  # PyMuPDF for PDF processing
-from app import mongo, upload_folder
+from app import mongo, QDRANT_HOST, QDRANT_PORT
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import hashlib
@@ -23,8 +23,14 @@ notes_collection = db.notes
 references_collection = db.references
 users_collection = db.users
 
+# REMNDER: Ensure Tto implement grpc for communication with Qdrant
+
 # Initialize Qdrant client for vector search
-qdrant_client = QdrantClient(host="localhost", port=6333)
+qdrant_client = QdrantClient(
+    host=QDRANT_HOST,
+    port=QDRANT_PORT,
+  
+)
 
 # Create the notes blueprint
 notes_bp = Blueprint('notes', __name__, url_prefix='/api/notes')
