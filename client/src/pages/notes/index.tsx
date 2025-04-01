@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookCopy, Filter, Newspaper, BookmarkPlus } from 'lucide-react';
+import { BookCopy, Filter, Newspaper, BookmarkPlus, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,18 +8,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import toast from 'react-hot-toast';
+
+// Import API service
+import { apiGet } from '@/services/api';
 
 // Import layout and components
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { FacultySelector } from '@/components/FacultySelector';
 
-
 // Import types
-import { Note, Faculty } from '../../types/index2';
+import { Note, Faculty, PaginatedResponse } from '@/types';
 
 // Animation component for transitions
-const FadeIn = ({ children }) => {
+const FadeIn: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div 
       className="animate-fadeIn opacity-0" 
@@ -37,11 +40,15 @@ const NotesPage: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedFaculty, setSelectedFaculty] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedSort, setSelectedSort] = useState<string>('recent');
   const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [totalNotes, setTotalNotes] = useState<number>(0);
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   
   // Theme colors
   const colors = {
@@ -57,192 +64,83 @@ const NotesPage: React.FC = () => {
     border: '#E2E8F0',
   };
   
-  // Fetch data on component mount
+  // Fetch faculties on component mount
   useEffect(() => {
+    fetchFaculties();
     fetchNotes();
-    
-    // Mock faculties
-    setFaculties([
-      { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
-      { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
-      { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
-      { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
-      { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
-    ]);
   }, []);
   
   // Apply filters when dependencies change
   useEffect(() => {
-    filterNotes();
+    if (notes.length > 0) {
+      filterNotes();
+    }
   }, [notes, selectedFaculty, selectedType, searchQuery, selectedSort]);
   
-  // Fetch notes
+  // Fetch faculties from API
+  const fetchFaculties = async () => {
+    try {
+      // Optional: Replace with actual API call if you have a faculties endpoint
+      // const response = await apiGet<Faculty[]>('/faculties');
+      // setFaculties(response);
+      
+      // Use mock faculties for now
+      setFaculties([
+        { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
+        { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
+        { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
+        { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
+        { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
+      ]);
+    } catch (err) {
+      console.error('Error fetching faculties:', err);
+      toast.error('Failed to load faculties.');
+    }
+  };
+  
+  // Fetch notes from API
   const fetchNotes = async () => {
     try {
-      // Mock API call
-      const mockNotes: Note[] = [
-        {
-          _id: '1',
-          title: 'Understanding Sorting Algorithms',
-          description: 'A comprehensive guide to common sorting algorithms and their time complexity analysis.',
-          url: '#',
-          source_name: 'Science Notes',
-          published_at: '2024-03-10',
-          type: 'notes',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['algorithms', 'computer science'],
-          relevance_score: 0.95
-        },
-        {
-          _id: '2',
-          title: 'Customer Journey Mapping in Digital Age',
-          description: 'How to effectively map customer journeys across multiple digital touchpoints.',
-          url: '#',
-          source_name: 'Business Review',
-          published_at: '2024-03-08',
-          type: 'notes',
-          faculty: 'Business',
-          facultyCode: 'bus',
-          categories: ['marketing', 'customer experience'],
-          relevance_score: 0.88
-        },
-        {
-          _id: '3',
-          title: 'Cardiac Muscle Physiology',
-          description: 'Detailed examination of cardiac muscle structure and function.',
-          url: '#',
-          source_name: 'Medical Journal',
-          published_at: '2024-03-05',
-          type: 'academic',
-          faculty: 'Medicine',
-          facultyCode: 'med',
-          categories: ['anatomy', 'physiology'],
-          relevance_score: 0.92
-        },
-        {
-          _id: '4',
-          title: 'Modernist Poetry Analysis',
-          description: 'Critical analysis of key modernist poetic works and their literary significance.',
-          url: '#',
-          source_name: 'Arts Review',
-          published_at: '2024-03-01',
-          type: 'notes',
-          faculty: 'Arts',
-          facultyCode: 'arts',
-          categories: ['literature', 'poetry'],
-          relevance_score: 0.85
-        },
-        {
-          _id: '5',
-          title: 'Neural Networks Fundamentals',
-          description: 'Introduction to neural network architectures and applications in machine learning.',
-          url: '#',
-          source_name: 'CS Research',
-          published_at: '2024-02-25',
-          type: 'academic',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['machine learning', 'AI'],
-          relevance_score: 0.96
-        },
-        {
-          _id: '6',
-          title: 'Bridge Design Principles',
-          description: 'Core principles and methodologies in modern bridge design and construction.',
-          url: '#',
-          source_name: 'Engineering Today',
-          published_at: '2024-02-20',
-          type: 'notes',
-          faculty: 'Engineering',
-          facultyCode: 'eng',
-          categories: ['structural engineering', 'civil'],
-          relevance_score: 0.89
-        },
-        {
-          _id: '7',
-          title: 'Sustainable Business Practices',
-          description: 'Analysis of sustainable business models and environmental impact considerations.',
-          url: '#',
-          source_name: 'Business Ethics Journal',
-          published_at: '2024-02-15',
-          type: 'academic',
-          faculty: 'Business',
-          facultyCode: 'bus',
-          categories: ['sustainability', 'ethics', 'business'],
-          relevance_score: 0.87
-        },
-        {
-          _id: '8',
-          title: 'Renaissance Sculpture Techniques',
-          description: 'Examination of sculptural methods and materials used during the Renaissance period.',
-          url: '#',
-          source_name: 'Art History Review',
-          published_at: '2024-02-10',
-          type: 'academic',
-          faculty: 'Arts',
-          facultyCode: 'arts',
-          categories: ['art history', 'sculpture', 'renaissance'],
-          relevance_score: 0.86
-        },
-        {
-          _id: '9',
-          title: 'Genetic Engineering Advancements',
-          description: 'Recent breakthroughs in genetic engineering and their implications for medicine.',
-          url: '#',
-          source_name: 'BioTech Review',
-          published_at: '2024-02-05',
-          type: 'academic',
-          faculty: 'Medicine',
-          facultyCode: 'med',
-          categories: ['genetics', 'biotech', 'medicine'],
-          relevance_score: 0.93
-        },
-        {
-          _id: '10',
-          title: 'Quantum Computing Basics',
-          description: 'Introduction to quantum computing principles and current technological state.',
-          url: '#',
-          source_name: 'Physics Today',
-          published_at: '2024-01-30',
-          type: 'notes',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['quantum', 'computing', 'physics'],
-          relevance_score: 0.91
-        },
-        {
-          _id: '11',
-          title: 'Materials Science in Construction',
-          description: 'Overview of advanced materials used in modern construction projects.',
-          url: '#',
-          source_name: 'Engineering Digest',
-          published_at: '2024-01-25',
-          type: 'notes',
-          faculty: 'Engineering',
-          facultyCode: 'eng',
-          categories: ['materials', 'construction', 'engineering'],
-          relevance_score: 0.84
-        },
-        {
-          _id: '12',
-          title: 'Investment Portfolio Strategies',
-          description: 'Analysis of various investment approaches for different economic conditions.',
-          url: '#',
-          source_name: 'Finance Quarterly',
-          published_at: '2024-01-20',
-          type: 'notes',
-          faculty: 'Business',
-          facultyCode: 'bus',
-          categories: ['finance', 'investment', 'economics'],
-          relevance_score: 0.90
-        }
-      ];
+      setIsLoading(true);
+      setError(null);
       
-      setNotes(mockNotes);
+      // Build query parameters
+      const params = new URLSearchParams();
+      
+      if (selectedFaculty !== 'all') {
+        params.append('faculty', selectedFaculty);
+      }
+      
+      if (selectedType !== 'all') {
+        params.append('type', selectedType);
+      }
+      
+      if (searchQuery.trim()) {
+        params.append('query', searchQuery.trim());
+      }
+      
+      params.append('sort_by', selectedSort);
+      params.append('page', page.toString());
+      params.append('limit', '12'); // Adjust limit as needed
+      
+      // Make API call
+      const response = await apiGet<PaginatedResponse<Note>>(`/notes/?${params.toString()}`);
+      console.log('API Response:', response);
+      
+      if (response.status === 'success') {
+        setNotes(response.data || []);
+        setTotalNotes(response.total || 0);
+        setTotalPages(response.pages || 1);
+      } else {
+        setError(response.error || 'An error occurred while fetching notes.');
+        toast.error('Failed to load notes.');
+      }
+      
       setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching notes:', error);
+    } catch (err: any) {
+      console.error('Error fetching notes:', err);
+      setError(err.message || 'An error occurred while fetching notes.');
+      toast.error('Failed to load notes. Please try again.');
       setIsLoading(false);
     }
   };
@@ -251,17 +149,17 @@ const NotesPage: React.FC = () => {
   const filterNotes = () => {
     let result = [...notes];
     
-    // Apply faculty filter
+    // Apply faculty filter (if not already filtered by API)
     if (selectedFaculty !== 'all') {
       result = result.filter(note => note.facultyCode === selectedFaculty);
     }
     
-    // Apply type filter
+    // Apply type filter (if not already filtered by API)
     if (selectedType !== 'all') {
       result = result.filter(note => note.type === selectedType);
     }
     
-    // Apply search filter
+    // Apply search filter (if not already filtered by API)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -272,7 +170,7 @@ const NotesPage: React.FC = () => {
       );
     }
     
-    // Apply sorting
+    // Apply sorting (if not already sorted by API)
     switch (selectedSort) {
       case 'recent':
         result.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
@@ -294,7 +192,7 @@ const NotesPage: React.FC = () => {
   // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    filterNotes();
+    fetchNotes(); // Re-fetch with new search parameters
   };
   
   // Reset all filters
@@ -303,10 +201,16 @@ const NotesPage: React.FC = () => {
     setSelectedFaculty('all');
     setSelectedType('all');
     setSelectedSort('recent');
+    setPage(1);
+    
+    // Re-fetch notes with reset filters
+    setTimeout(() => {
+      fetchNotes();
+    }, 0);
   };
   
   // Get note type color
-  const getNoteTypeColor = (type: string) => {
+  const getNoteTypeColor = (type: string): string => {
     switch (type) {
       case 'academic':
         return colors.primary;
@@ -315,6 +219,19 @@ const NotesPage: React.FC = () => {
       default:
         return colors.tertiary;
     }
+  };
+  
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Re-fetch notes for the new page
+    setTimeout(() => {
+      fetchNotes();
+    }, 0);
   };
   
   return (
@@ -328,7 +245,11 @@ const NotesPage: React.FC = () => {
               <TabsList className="w-full" style={{ backgroundColor: `${colors.secondary}33` }}>
                 <TabsTrigger 
                   value="all" 
-                  onClick={() => setSelectedType('all')}
+                  onClick={() => {
+                    setSelectedType('all');
+                    setPage(1);
+                    setTimeout(fetchNotes, 0);
+                  }}
                   className="data-[state=active]:text-white transition-all"
                   style={{ 
                     backgroundColor: "transparent",
@@ -343,7 +264,11 @@ const NotesPage: React.FC = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="notes" 
-                  onClick={() => setSelectedType('notes')}
+                  onClick={() => {
+                    setSelectedType('notes');
+                    setPage(1);
+                    setTimeout(fetchNotes, 0);
+                  }}
                   className="data-[state=active]:text-white transition-all"
                   style={{ 
                     backgroundColor: "transparent",
@@ -358,7 +283,11 @@ const NotesPage: React.FC = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="academic" 
-                  onClick={() => setSelectedType('academic')}
+                  onClick={() => {
+                    setSelectedType('academic');
+                    setPage(1);
+                    setTimeout(fetchNotes, 0);
+                  }}
                   className="data-[state=active]:text-white transition-all"
                   style={{ 
                     backgroundColor: "transparent",
@@ -407,13 +336,24 @@ const NotesPage: React.FC = () => {
                   <FacultySelector 
                     faculties={faculties} 
                     selectedFaculty={selectedFaculty}
-                    onSelect={setSelectedFaculty}
+                    onSelect={(faculty) => {
+                      setSelectedFaculty(faculty);
+                      setPage(1);
+                      setTimeout(fetchNotes, 0);
+                    }}
                   />
                 </div>
                 
                 {/* Sort Filter */}
                 <div>
-                  <Select value={selectedSort} onValueChange={setSelectedSort}>
+                  <Select 
+                    value={selectedSort} 
+                    onValueChange={(value) => {
+                      setSelectedSort(value);
+                      setPage(1);
+                      setTimeout(fetchNotes, 0);
+                    }}
+                  >
                     <SelectTrigger style={{ borderColor: colors.secondary, color: colors.textPrimary }}>
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
@@ -430,7 +370,7 @@ const NotesPage: React.FC = () => {
             <CardFooter className="flex justify-between">
               <div>
                 <Badge className="mr-2" style={{ backgroundColor: colors.tertiary, color: colors.textPrimary }}>
-                  {filteredNotes.length} notes found
+                  {totalNotes} notes found
                 </Badge>
                 {(selectedFaculty !== 'all' || selectedType !== 'all' || searchQuery || selectedSort !== 'recent') && (
                   <Badge style={{ backgroundColor: colors.quaternary, color: 'white' }}>
@@ -447,6 +387,26 @@ const NotesPage: React.FC = () => {
               </Button>
             </CardFooter>
           </Card>
+          
+          {/* Error Alert */}
+          {error && (
+            <Alert 
+              className="mb-6 border-2" 
+              style={{ 
+                backgroundColor: colors.surface, 
+                borderColor: colors.primary,
+                color: colors.textPrimary
+              }}
+            >
+              <AlertTitle className="font-bold title-font flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2" style={{ color: colors.primary }} />
+                Error Loading Notes
+              </AlertTitle>
+              <AlertDescription>
+                {error}. Please try again or contact support if the problem persists.
+              </AlertDescription>
+            </Alert>
+          )}
           
           {/* Notes Grid */}
           {isLoading ? (
@@ -482,16 +442,61 @@ const NotesPage: React.FC = () => {
               </AlertDescription>
             </Alert>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {filteredNotes.map((note, index) => (
-                <div key={note._id} className="animate-fadeIn" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <NoteCard 
-                    note={note}
-                    typeColor={getNoteTypeColor(note.type)}
-                  />
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {filteredNotes.map((note, index) => (
+                  <div key={note._id} className="animate-fadeIn" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <NoteCard 
+                      note={note}
+                      typeColor={getNoteTypeColor(note.type)}
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center mt-6 space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={page === 1}
+                    onClick={() => handlePageChange(page - 1)}
+                    style={{ borderColor: colors.secondary, color: colors.secondary }}
+                  >
+                    Previous
+                  </Button>
+                  
+                  <div className="flex space-x-1">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <Button
+                        key={i}
+                        variant={page === i + 1 ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(i + 1)}
+                        style={
+                          page === i + 1
+                            ? { backgroundColor: colors.secondary, color: 'white' }
+                            : { borderColor: colors.secondary, color: colors.secondary }
+                        }
+                      >
+                        {i + 1}
+                      </Button>
+                    ))}
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={page === totalPages}
+                    onClick={() => handlePageChange(page + 1)}
+                    style={{ borderColor: colors.secondary, color: colors.secondary }}
+                  >
+                    Next
+                  </Button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
           
           {/* Bookmarked/Saved Notes Section */}
@@ -519,6 +524,11 @@ const NotesPage: React.FC = () => {
                 <Button 
                   className="mt-4 font-medium"
                   style={{ backgroundColor: colors.tertiary, color: colors.textPrimary }}
+                  onClick={() => {
+                    resetFilters();
+                    setSelectedSort('relevance');
+                    setTimeout(fetchNotes, 0);
+                  }}
                 >
                   Explore Popular Notes
                 </Button>

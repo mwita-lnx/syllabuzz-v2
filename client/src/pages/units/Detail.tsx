@@ -9,7 +9,8 @@ import {
   GraduationCap,
   Tag,
   Link2,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,24 +18,26 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import toast from 'react-hot-toast';
+
+// Import API service
+import { apiGet, apiPost } from '@/services/api';
 
 // Import layout and components
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { PastPaperCard } from '@/components/PastPaperCard';
 
-// Import past paper service
-import { PastPaper } from '@/services/pastpaper-service';
+import  NoteSearchComponent  from '@/components/NoteSearchComponent';
 
 // Import types
-import { Unit, Note } from '@/types/index2';
+import { Unit, Note, PastPaper, ApiResponse } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
-
-const ExternalLink = ({ className }) => <Link2 className={className} />;
-
+const ExternalLink: React.FC<{ className?: string }> = ({ className }) => <Link2 className={className} />;
 
 // Animation component for transitions
-const FadeIn = ({ children }) => {
+const FadeIn: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div 
       className="animate-fadeIn opacity-0" 
@@ -50,6 +53,7 @@ const FadeIn = ({ children }) => {
 const UnitDetailPage: React.FC = () => {
   const { unitId } = useParams<{ unitId: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   
   // State management
   const [unit, setUnit] = useState<Unit | null>(null);
@@ -57,6 +61,8 @@ const UnitDetailPage: React.FC = () => {
   const [pastPapers, setPastPapers] = useState<PastPaper[]>([]);
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   
   // Theme colors
   const colors = {
@@ -75,170 +81,95 @@ const UnitDetailPage: React.FC = () => {
   // Fetch data on component mount
   useEffect(() => {
     if (unitId) {
-      fetchUnitDetails(unitId);
+      fetchUnitDetails();
+      fetchRelatedNotes();
+      fetchPastPapers();
+      if (isAuthenticated) {
+        checkBookmarkStatus();
+      }
     }
-  }, [unitId]);
+  }, [unitId, isAuthenticated]);
   
   // Fetch unit details
-  const fetchUnitDetails = async (id: string) => {
+  const fetchUnitDetails = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       
-      // Mock API call for unit details
-      const mockUnit: Unit = {
-        _id: id,
-        name: 'Data Structures and Algorithms',
-        code: 'CS202',
-        description: 'This course covers fundamental data structures and algorithms. Topics include arrays, linked lists, stacks, queues, trees, graphs, sorting, searching, and algorithm analysis.',
-        faculty: 'Science',
-        facultyCode: 'sci',
-        keywords: ['algorithms', 'data structures', 'programming', 'complexity analysis', 'sorting', 'searching'],
-        created_at: '2023-01-15',
-        syllabus: [
-          'Introduction to algorithm analysis',
-          'Arrays and linked lists',
-          'Stacks and queues',
-          'Trees and binary search trees',
-          'Heaps and priority queues',
-          'Hash tables',
-          'Graphs and graph algorithms',
-          'Sorting algorithms',
-          'Searching algorithms',
-          'Dynamic programming'
-        ],
-        prerequisites: ['CS101', 'MATH201'],
-        instructors: [
-          { name: 'Dr. Jane Smith', email: 'jane.smith@university.edu' },
-          { name: 'Prof. John Doe', email: 'john.doe@university.edu' }
-        ],
-        credits: 4,
-        level: 'Intermediate'
-      };
+      if (!unitId) {
+        setError('Unit ID is missing');
+        setIsLoading(false);
+        return;
+      }
       
-      // Mock API call for related notes
-      const mockNotes: Note[] = [
-        {
-          _id: '1',
-          title: 'Understanding Sorting Algorithms',
-          description: 'A comprehensive guide to common sorting algorithms and their time complexity analysis.',
-          url: '#',
-          source_name: 'Science Notes',
-          published_at: '2024-03-10',
-          type: 'notes',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['algorithms', 'computer science'],
-          relevance_score: 0.95
-        },
-        {
-          _id: '5',
-          title: 'Binary Search Trees Implementation',
-          description: 'Detailed explanation of binary search tree operations with implementation examples.',
-          url: '#',
-          source_name: 'CS Research',
-          published_at: '2024-02-25',
-          type: 'academic',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['data structures', 'algorithms'],
-          relevance_score: 0.92
-        },
-        {
-          _id: '8',
-          title: 'Graph Algorithms and Applications',
-          description: 'Overview of common graph algorithms and their real-world applications.',
-          url: '#',
-          source_name: 'Algorithm Journal',
-          published_at: '2024-01-15',
-          type: 'academic',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['graphs', 'algorithms'],
-          relevance_score: 0.89
-        },
-        {
-          _id: '12',
-          title: 'Time Complexity Analysis Techniques',
-          description: 'Methods for analyzing and determining the time complexity of algorithms.',
-          url: '#',
-          source_name: 'CS Education',
-          published_at: '2023-12-10',
-          type: 'notes',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['algorithms', 'analysis'],
-          relevance_score: 0.87
-        }
-      ];
+      // Make API call to get unit details
+      const response = await apiGet<ApiResponse<Unit>>(`/units/${unitId}`);
       
-      // Mock API call for past papers
-      const mockPastPapers: PastPaper[] = [
-        {
-          _id: '1',
-          title: 'Data Structures & Algorithms Final Exam',
-          unit_id: id,
-          unit_name: 'Data Structures and Algorithms',
-          unit_code: 'CS202',
-          year: '2023',
-          exam_type: 'Final',
-          semester: 'Spring',
-          stream: 'Regular',
-          date: '2023-06-15',
-          time: '09:00',
-          session: 'Morning',
-          file_path: '/files/CS202_2023_Final.pdf',
-          created_at: '2023-07-01',
-          updated_at: '2023-07-01',
-          faculty: 'Science',
-          faculty_code: 'sci'
-        },
-        {
-          _id: '8',
-          title: 'Data Structures & Algorithms Sample Paper',
-          unit_id: id,
-          unit_name: 'Data Structures and Algorithms',
-          unit_code: 'CS202',
-          year: '2023',
-          exam_type: 'Sample',
-          semester: 'Spring',
-          stream: 'Regular',
-          date: '2023-05-01',
-          time: '00:00',
-          session: 'N/A',
-          file_path: '/files/CS202_2023_Sample.pdf',
-          created_at: '2023-05-05',
-          updated_at: '2023-05-05',
-          faculty: 'Science',
-          faculty_code: 'sci'
-        },
-        {
-          _id: '9',
-          title: 'Data Structures & Algorithms Midterm',
-          unit_id: id,
-          unit_name: 'Data Structures and Algorithms',
-          unit_code: 'CS202',
-          year: '2023',
-          exam_type: 'Midterm',
-          semester: 'Spring',
-          stream: 'Regular',
-          date: '2023-03-15',
-          time: '09:00',
-          session: 'Morning',
-          file_path: '/files/CS202_2023_Midterm.pdf',
-          created_at: '2023-03-20',
-          updated_at: '2023-03-20',
-          faculty: 'Science',
-          faculty_code: 'sci'
-        }
-      ];
+      if (response.status && response.data) {
+        setUnit(response.data);
+      } else {
+        setError(response.error || 'Failed to load unit details');
+        toast.error('Failed to load unit details');
+      }
       
-      setUnit(mockUnit);
-      setRelatedNotes(mockNotes);
-      setPastPapers(mockPastPapers);
       setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching unit details:', error);
+    } catch (err: any) {
+      console.error('Error fetching unit details:', err);
+      setError(err.message || 'Failed to fetch unit details');
+      toast.error('Failed to load unit details');
       setIsLoading(false);
+    }
+  };
+  
+  // Fetch related notes
+  const fetchRelatedNotes = async () => {
+    try {
+      if (!unitId) return;
+      
+      // Make API call to get related notes
+      const response = await apiGet<ApiResponse<Note[]>>(`/notes/?unit_id=${unitId}&limit=4`);
+      
+      if (response.status && response.data) {
+        setRelatedNotes(response.data);
+      } else {
+        console.error('Error fetching related notes:', response.error);
+      }
+    } catch (err) {
+      console.error('Error fetching related notes:', err);
+    }
+  };
+  
+  // Fetch past papers
+  const fetchPastPapers = async () => {
+    try {
+      if (!unitId) return;
+      
+      // Make API call to get past papers
+      const response = await apiGet<ApiResponse<PastPaper[]>>(`/pastpapers/?unit_id=${unitId}&limit=4`);
+      
+      if (response.status === "success" && response.data) {
+        setPastPapers(response.data);
+      } else {
+        console.error('Error fetching past papers:', response.error);
+      }
+    } catch (err) {
+      console.error('Error fetching past papers:', err);
+    }
+  };
+  
+  // Check if the unit is bookmarked
+  const checkBookmarkStatus = async () => {
+    try {
+      if (!unitId || !isAuthenticated) return;
+      
+      // Make API call to check bookmark status
+      const response = await apiGet<ApiResponse<{ bookmarked: boolean }>>(`/saved-items/check/?type=unit&item_id=${unitId}`);
+      
+      if (response.status === "success" && response.data) {
+        setIsBookmarked(response.data.bookmarked);
+      }
+    } catch (err) {
+      console.error('Error checking bookmark status:', err);
     }
   };
   
@@ -263,9 +194,44 @@ const UnitDetailPage: React.FC = () => {
   };
   
   // Bookmark unit for later
-  const handleBookmark = () => {
-    console.log('Bookmarking unit:', unit?.code);
-    // In a real app, we would implement actual bookmarking functionality
+  const handleBookmark = async () => {
+    try {
+      if (!unitId || !isAuthenticated) {
+        toast.error('Please log in to bookmark units');
+        return;
+      }
+      
+      if (isBookmarked) {
+        // Remove bookmark
+        const response = await apiPost<ApiResponse<null>>('/saved-items/remove/', {
+          type: 'unit',
+          item_id: unitId
+        });
+        
+        if (response.status === 'success') {
+          setIsBookmarked(false);
+          toast.success('Unit removed from bookmarks');
+        } else {
+          toast.error(response.error || 'Failed to remove bookmark');
+        }
+      } else {
+        // Add bookmark
+        const response = await apiPost<ApiResponse<{ saved_item_id: string }>>('/saved-items/add/', {
+          type: 'unit',
+          item_id: unitId
+        });
+        
+        if (response.status === 'success') {
+          setIsBookmarked(true);
+          toast.success('Unit bookmarked successfully');
+        } else {
+          toast.error(response.error || 'Failed to bookmark unit');
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err);
+      toast.error('Failed to update bookmark');
+    }
   };
   
   return (
@@ -282,6 +248,26 @@ const UnitDetailPage: React.FC = () => {
           >
             <ChevronLeft className="w-4 h-4" /> Back to Units
           </Button>
+          
+          {/* Error Alert */}
+          {error && (
+            <Alert 
+              className="mb-6 border-2" 
+              style={{ 
+                backgroundColor: colors.surface, 
+                borderColor: colors.primary,
+                color: colors.textPrimary
+              }}
+            >
+              <AlertTitle className="font-bold title-font flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2" style={{ color: colors.primary }} />
+                Error Loading Unit
+              </AlertTitle>
+              <AlertDescription>
+                {error}. Please try again or contact support if the problem persists.
+              </AlertDescription>
+            </Alert>
+          )}
           
           {/* Unit Header Card */}
           {isLoading ? (
@@ -317,14 +303,18 @@ const UnitDetailPage: React.FC = () => {
                       {unit.name}
                     </CardTitle>
                     <CardDescription className="text-lg" style={{ color: colors.textSecondary }}>
-                      {unit.code} | {unit.level} | {unit.credits} Credits
+                      {unit.code} {unit.level && `| ${unit.level}`} {unit.credits && `| ${unit.credits} Credits`}
                     </CardDescription>
                   </div>
                   <Button 
                     variant="outline" 
                     size="icon"
                     className="rounded-full"
-                    style={{ borderColor: getFacultyColor(), color: getFacultyColor() }}
+                    style={{ 
+                      borderColor: getFacultyColor(), 
+                      color: getFacultyColor(),
+                      backgroundColor: isBookmarked ? `${getFacultyColor()}20` : 'transparent' 
+                    }}
                     onClick={handleBookmark}
                   >
                     <BookmarkPlus className="w-5 h-5" />
@@ -358,8 +348,12 @@ const UnitDetailPage: React.FC = () => {
                     <div>
                       {unit.instructors.map((instructor, idx) => (
                         <div key={idx} className="flex items-center gap-2 mb-1">
-                          <span style={{ color: colors.textPrimary }}>{instructor.name}</span>
-                          <span style={{ color: colors.textSecondary }}>({instructor.email})</span>
+                          <span style={{ color: colors.textPrimary }}>
+                            {instructor.title && `${instructor.title} `}{instructor.name}
+                          </span>
+                          {instructor.email && (
+                            <span style={{ color: colors.textSecondary }}>({instructor.email})</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -402,7 +396,7 @@ const UnitDetailPage: React.FC = () => {
           )}
           
           {/* Tabs Section */}
-          {unit && (
+          {unit && !error && (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList 
                 className="w-full max-w-md mx-auto grid grid-cols-3" 
@@ -463,7 +457,7 @@ const UnitDetailPage: React.FC = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {unit.syllabus ? (
+                      {unit.syllabus && unit.syllabus.length > 0 ? (
                         <ul className="space-y-2">
                           {unit.syllabus.map((item, idx) => (
                             <li 
@@ -490,49 +484,52 @@ const UnitDetailPage: React.FC = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="font-bold mb-2" style={{ color: getFacultyColor() }}>Recommended Materials</h3>
-                          <ul className="space-y-2" style={{ color: colors.textPrimary }}>
-                            <li>Data Structures & Algorithms in Java (6th Edition)</li>
-                            <li>Introduction to Algorithms (CLRS, 3rd Edition)</li>
-                            <li>Algorithm Design Manual (Skiena)</li>
-                          </ul>
+                      {unit.resources && unit.resources.length > 0 ? (
+                        <div className="space-y-4">
+                          {unit.resources.map((resource, idx) => (
+                            <div key={idx}>
+                              <h3 className="font-bold mb-2" style={{ color: getFacultyColor() }}>
+                                {resource.category || 'Resource'}
+                              </h3>
+                              <ul className="space-y-2" style={{ color: colors.textPrimary }}>
+                                {resource.items.map((item, itemIdx) => (
+                                  <li key={itemIdx}>
+                                    {item.url ? (
+                                      <a 
+                                        href={item.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 hover:underline" 
+                                        style={{ color: getFacultyColor() }}
+                                      >
+                                        <ExternalLink className="w-4 h-4" /> {item.name}
+                                      </a>
+                                    ) : (
+                                      item.name
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
                         </div>
-                        
-                        <div>
-                          <h3 className="font-bold mb-2" style={{ color: getFacultyColor() }}>Online Resources</h3>
-                          <ul className="space-y-2">
-                            <li>
-                              <a 
-                                href="#" 
-                                className="flex items-center gap-2 hover:underline" 
-                                style={{ color: getFacultyColor() }}
-                              >
-                                <ExternalLink className="w-4 h-4" /> Course Website
-                              </a>
-                            </li>
-                            <li>
-                              <a 
-                                href="#" 
-                                className="flex items-center gap-2 hover:underline" 
-                                style={{ color: getFacultyColor() }}
-                              >
-                                <ExternalLink className="w-4 h-4" /> Lecture Recordings
-                              </a>
-                            </li>
-                            <li>
-                              <a 
-                                href="#" 
-                                className="flex items-center gap-2 hover:underline" 
-                                style={{ color: getFacultyColor() }}
-                              >
-                                <ExternalLink className="w-4 h-4" /> Practice Exercises
-                              </a>
-                            </li>
-                          </ul>
+                      ) : (
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="font-bold mb-2" style={{ color: getFacultyColor() }}>Recommended Materials</h3>
+                            <p className="text-sm" style={{ color: colors.textSecondary }}>
+                              No recommended materials have been added for this unit.
+                            </p>
+                          </div>
+                          
+                          <div>
+                            <h3 className="font-bold mb-2" style={{ color: getFacultyColor() }}>Online Resources</h3>
+                            <p className="text-sm" style={{ color: colors.textSecondary }}>
+                              No online resources have been added for this unit.
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -543,7 +540,7 @@ const UnitDetailPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Button 
                       variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center font-medium transition-all hover-scale"
+                      className="h-20 flex flex-col items-center justify-center font-medium transition-all hover:scale-105"
                       style={{ borderColor: getFacultyColor(), color: getFacultyColor() }}
                       onClick={() => setActiveTab('notes')}
                     >
@@ -553,7 +550,7 @@ const UnitDetailPage: React.FC = () => {
                     
                     <Button 
                       variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center font-medium transition-all hover-scale"
+                      className="h-20 flex flex-col items-center justify-center font-medium transition-all hover:scale-105"
                       style={{ borderColor: getFacultyColor(), color: getFacultyColor() }}
                       onClick={() => setActiveTab('pastpapers')}
                     >
@@ -563,7 +560,7 @@ const UnitDetailPage: React.FC = () => {
                     
                     <Button 
                       variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center font-medium transition-all hover-scale"
+                      className="h-20 flex flex-col items-center justify-center font-medium transition-all hover:scale-105"
                       style={{ borderColor: getFacultyColor(), color: getFacultyColor() }}
                       onClick={() => navigate('/revision')}
                     >
@@ -583,11 +580,17 @@ const UnitDetailPage: React.FC = () => {
                   <Button 
                     variant="outline"
                     style={{ borderColor: getFacultyColor(), color: getFacultyColor() }}
-                    onClick={() => navigate('/notes')}
+                    onClick={() => navigate('/notes?unit_id=' + unitId)}
                   >
                     View All Notes →
                   </Button>
                 </div>
+                
+                {/* Add the search component here */}
+                <NoteSearchComponent 
+                  unitId={unitId} 
+                  facultyColor={getFacultyColor()} 
+                />
                 
                 {relatedNotes.length === 0 ? (
                   <Alert 
@@ -616,6 +619,17 @@ const UnitDetailPage: React.FC = () => {
                     ))}
                   </div>
                 )}
+                
+                {isAuthenticated && (
+                  <div className="mt-6 text-center">
+                    <Button
+                      style={{ backgroundColor: getFacultyColor(), color: 'white' }}
+                      onClick={() => navigate('/upload?unit_id=' + unitId)}
+                    >
+                      Upload Notes for This Unit
+                    </Button>
+                  </div>
+                )}
               </TabsContent>
               
               {/* Past Papers Tab Content */}
@@ -627,7 +641,7 @@ const UnitDetailPage: React.FC = () => {
                   <Button 
                     variant="outline"
                     style={{ borderColor: getFacultyColor(), color: getFacultyColor() }}
-                    onClick={() => navigate('/revision')}
+                    onClick={() => navigate('/pastpapers?unit_id=' + unitId)}
                   >
                     View All Papers →
                   </Button>
@@ -657,6 +671,17 @@ const UnitDetailPage: React.FC = () => {
                         />
                       </div>
                     ))}
+                  </div>
+                )}
+                
+                {isAuthenticated && (
+                  <div className="mt-6 text-center">
+                    <Button
+                      style={{ backgroundColor: getFacultyColor(), color: 'white' }}
+                      onClick={() => navigate('/upload?type=pastpaper&unit_id=' + unitId)}
+                    >
+                      Upload Past Paper
+                    </Button>
                   </div>
                 )}
               </TabsContent>

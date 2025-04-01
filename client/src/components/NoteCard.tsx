@@ -1,11 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Star, ThumbsUp, BookmarkPlus, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-
-// Import types
-import { Note } from '../types/index2';
+import { toast } from 'react-hot-toast';
+import { Note } from '../types';
 
 interface NoteCardProps {
   note: Note;
@@ -18,6 +18,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({
   unitId,
   typeColor = note.type === 'academic' ? '#FF6B6B' : '#4ECDC4'
 }) => {
+  const navigate = useNavigate();
+  
   // Format date
   const formatDate = (dateString: string): string => {
     if (!dateString) return '';
@@ -30,23 +32,41 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     });
   };
   
-  // Handle note interactions
-  const recordView = (): void => {
-    console.log('Viewing note:', note._id);
-    // In a real implementation, we would record this interaction
-    window.open(note.url, '_blank');
+  // Handle card click - navigate to note detail page
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default behavior
+    
+    // Navigate to note detail page using React Router
+    navigate(`/notes/${note._id}`);
   };
   
-  const recordLike = (e: React.MouseEvent): void => {
-    e.stopPropagation();
+  // Handle like button click
+  const handleLike = (e: React.MouseEvent): void => {
+    e.stopPropagation(); // Prevent card click event
+    toast.success('Note liked!');
     console.log('Liking note:', note._id);
-    // In a real implementation, we would record this interaction
+    // In a real implementation, we would call an API to like the note
   };
   
-  const recordBookmark = (e: React.MouseEvent): void => {
-    e.stopPropagation();
+  // Handle bookmark button click
+  const handleBookmark = (e: React.MouseEvent): void => {
+    e.stopPropagation(); // Prevent card click event
+    toast.success('Note saved to bookmarks!');
     console.log('Bookmarking note:', note._id);
-    // In a real implementation, we would record this interaction
+    // In a real implementation, we would call an API to bookmark the note
+  };
+  
+  // Handle external view (e.g., opening PDF)
+  const handleExternalView = (e: React.MouseEvent): void => {
+    e.stopPropagation(); // Prevent card click event
+    
+    // If note has a URL, open it in a new tab
+    if (note.url) {
+      window.open(note.url, '_blank');
+    } else {
+      // Otherwise navigate to note detail page
+      navigate(`/notes/${note._id}`);
+    }
   };
   
   const hasImage = note.image_url && note.image_url.trim() !== '';
@@ -55,7 +75,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     <div className="h-full transition-all hover-scale">
       <Card 
         className="h-full border hover:shadow-lg cursor-pointer transition-all duration-300" 
-        onClick={recordView}
+        onClick={handleCardClick}
         style={{ 
           backgroundColor: '#F7F9FC', 
           borderColor: typeColor,
@@ -121,7 +141,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={recordLike}
+            onClick={handleLike}
             className="hover:bg-opacity-20 transition-colors"
             style={{ color: '#6A0572' }}
           >
@@ -130,20 +150,19 @@ export const NoteCard: React.FC<NoteCardProps> = ({
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={recordBookmark}
+            onClick={handleBookmark}
             className="hover:bg-opacity-20 transition-colors"
             style={{ color: '#FF6B6B' }}
           >
             <BookmarkPlus className="w-4 h-4 mr-1" /> Save
           </Button>
           
-          {/* Fixed this button: When using asChild, we need to make sure it has exactly one child */}
           <Button 
             variant="ghost" 
             size="sm" 
             className="hover:bg-opacity-20 transition-colors"
             style={{ color: '#4ECDC4' }}
-            onClick={() => window.open(note.url, '_blank')}
+            onClick={handleExternalView}
           >
             <ExternalLink className="w-4 h-4 mr-1" /> View
           </Button>

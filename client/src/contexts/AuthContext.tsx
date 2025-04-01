@@ -9,7 +9,7 @@ import axios from "axios";
 
 // Configure axios with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_SERVER_URL || "http://localhost:5000",
+  baseURL: import.meta.env.VITE_SERVER_URL || "http://localhost:5000/api",
 });
 
 // Define types for auth state and context
@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Verify token is still valid
           // Correct way
           await api.post(
-            "/api/auth/verify",
+            "/auth/verify",
             {},
             {
               headers: {
@@ -135,8 +135,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await api.post("/api/auth/login", { email, password });
-      const data = response.data;
+      const response = await api.post("/auth/login", { email, password });
+      const data = response.data.data;
 
       // Save auth state
       console.log("Login response:", data);
@@ -167,7 +167,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     faculty?: string
   ): Promise<boolean> => {
     try {
-      await api.post("/api/auth/register", { name, email, password, faculty });
+      await api.post("/auth/register", { name, email, password, faculty });
 
       // Auto login after successful registration
       return await login(email, password);
@@ -198,7 +198,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      const response = await api.put("/api/auth/profile", userData);
+      const response = await api.put("/auth/profile", userData);
       const data = response.data;
 
       // Update user in state and localStorage

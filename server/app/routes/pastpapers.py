@@ -6,6 +6,7 @@ from middleware.middleware import token_required
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from app import mongo
 
 pastpapers = Blueprint('pastpapers', __name__, url_prefix='/api/pastpapers')
 
@@ -33,7 +34,7 @@ def get_papers():
     - limit: Number of papers per page (default: 20)
     """
     try:
-        db = current_app.config['MONGO_DB']
+        db = mongo.db
         
         # Get query parameters
         unit_id = request.args.get('unit_id')
@@ -134,7 +135,7 @@ def get_paper(paper_id):
         if not ObjectId.is_valid(paper_id):
             return jsonify({"success": False, "error": "Invalid paper ID"}), 400
             
-        db = current_app.config['MONGO_DB']
+        db = mongo.db
         
         # Get paper
         paper = db.past_papers.find_one({"_id": ObjectId(paper_id)})
@@ -184,7 +185,7 @@ def download_paper(paper_id):
         if not ObjectId.is_valid(paper_id):
             return jsonify({"success": False, "error": "Invalid paper ID"}), 400
             
-        db = current_app.config['MONGO_DB']
+        db = mongo.db
         
         # Get paper
         paper = db.past_papers.find_one({"_id": ObjectId(paper_id)})
@@ -228,7 +229,7 @@ def upload_paper():
     - topics: Array of topics
     """
     try:
-        db = current_app.config['MONGO_DB']
+        db = mongo.db
         
         # Check if request has the file part
         if 'file' not in request.files:
@@ -246,7 +247,7 @@ def upload_paper():
             
         # Get form data
         title = request.form.get('title')
-        unit_id = request.form.get('unit_id')
+        unit_id ='67e52fce6f404cf59ec51b6c'
         year = request.form.get('year')
         exam_type = request.form.get('exam_type')
         semester = request.form.get('semester')
@@ -353,7 +354,7 @@ def update_paper(paper_id):
         if not ObjectId.is_valid(paper_id):
             return jsonify({"success": False, "error": "Invalid paper ID"}), 400
             
-        db = current_app.config['MONGO_DB']
+        db = mongo.db
         data = request.json
         
         # Check if paper exists
@@ -464,7 +465,7 @@ def find_similar_papers(paper_id):
         if not ObjectId.is_valid(paper_id):
             return jsonify({"success": False, "error": "Invalid paper ID"}), 400
             
-        db = current_app.config['MONGO_DB']
+        db = mongo.db
         
         # Get paper
         paper = db.past_papers.find_one({"_id": ObjectId(paper_id)})
