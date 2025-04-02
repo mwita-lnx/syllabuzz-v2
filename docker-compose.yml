@@ -13,7 +13,6 @@ services:
       - "6334:6334"
     volumes:
       - /home/qdrant-data:/qdrant/storage
-
     restart: always
 
   server:
@@ -27,8 +26,8 @@ services:
     environment:
       - MONGO_URI=mongodb://mongo:27017/syllabuzz
       - QDRANT_URL=http://qdrant:6333
-      - QDRANT_HOST = qdrant
-      - QDRANT_PORT = 6333
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
     depends_on:
       - mongo
       - qdrant
@@ -59,7 +58,7 @@ services:
       VITE_NODE_ENV: production
       VITE_SERVER_URL: https://server.syllabuzz.buzz
       VITE_BACKEND_URL: https://backend.syllabuzz.buzz
-      VITE_SERVER_BASE_URL : https://server.syllabuzz.buzz
+      VITE_SERVER_BASE_URL: https://server.syllabuzz.buzz
     depends_on:
       - server
 
