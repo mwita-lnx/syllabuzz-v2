@@ -56,7 +56,7 @@ services:
       - "3000:5173"
     environment:
       VITE_NODE_ENV: production
-      VITE_SERVER_URL: https://server.syllabuzz.buzz
+      VITE_SERVER_URL: https://server.syllabuzz.buzz/api
       VITE_BACKEND_URL: https://backend.syllabuzz.buzz
       VITE_SERVER_BASE_URL: https://server.syllabuzz.buzz
     depends_on:
