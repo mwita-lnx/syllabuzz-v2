@@ -102,6 +102,9 @@ def create_app(config_class=Config):
                 "status": "error",
                 "message": str(e)
             }), 500
+        
+
+    return app
 
 
 
