@@ -11,6 +11,10 @@ import redis
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+from app import mongo
+
+db = mongo.db
+
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
@@ -21,21 +25,20 @@ auth = Blueprint('auth', __name__)
 
 # Define standard response format
 def create_response(success=True, message=None, data=None, error=None, status_code=200):
-    """Create a standardized response format"""
+    """Standardized response format"""
     response = {
-        "success": success
+        'success': success
     }
     
     if message:
-        response["message"] = message
+        response['message'] = message
     if data is not None:
-        response["data"] = data
+        response['data'] = data
     if error:
-        response["error"] = error
+        response['error'] = error
         
     return jsonify(response), status_code
 
-# Authentication decorator for protected routes
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -60,10 +63,27 @@ def token_required(f):
             
             # Set current user in flask g object for access in the route
             user_id = payload['user_id']
-            g.current_user = payload
+            
+            # Fetch user from database - replace this with your actual user fetch logic
+            user = db.users.find_one({'_id': ObjectId(user_id)})
+            if not user:
+                # If user not found, use the payload as a fallback
+                current_user = {
+                    '_id': user_id,
+                    'role': payload.get('role', 'user'),
+                    'email': payload.get('email', '')
+                }
+            else:
+                # Format user document
+                current_user = dict(user)
+                current_user['_id'] = str(user['_id'])
+            
+            # Store in g for other decorators
+            g.current_user = current_user
             g.user_id = user_id
             
-            return f(*args, **kwargs)
+            # Pass the user to the decorated function
+            return f(current_user=current_user, *args, **kwargs)
             
         except jwt.ExpiredSignatureError:
             return create_response(success=False, error="Token has expired", status_code=401)
@@ -80,7 +100,7 @@ def role_required(roles):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if not g.current_user:
+            if not hasattr(g, 'current_user') or not g.current_user:
                 return create_response(success=False, error="Authentication required", status_code=401)
                 
             user_role = g.current_user.get('role')

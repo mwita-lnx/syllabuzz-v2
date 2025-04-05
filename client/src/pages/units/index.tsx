@@ -42,7 +42,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 // Import API service
-import { apiGet, apiPost } from '@/services/api';
+import { apiGet, apiUpload } from '@/services/api';
 
 // Import layout and components
 import { MainLayout } from '@/components/MainLayout';
@@ -53,7 +53,7 @@ import { FacultySelector } from '@/components/FacultySelector';
 import { Unit, Faculty, Instructor, PaginatedResponse, ApiResponse } from '@/types';
 
 // Animation component for transitions
-const FadeIn: React.FC<{ children: React.ReactNode, delay?: number }> = ({ children, delay = 0 }) => {
+const FadeIn = ({ children, delay = 0 }) => {
   return (
     <div 
       className="animate-fadeIn opacity-0" 
@@ -68,14 +68,11 @@ const FadeIn: React.FC<{ children: React.ReactNode, delay?: number }> = ({ child
 };
 
 // File dropzone component
-const FileDropzone: React.FC<{ 
-  onFileSelect: (files: File[] | File) => void, 
-  multiple?: boolean 
-}> = ({ onFileSelect, multiple = false }) => {
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [files, setFiles] = useState<File[]>([]);
+const FileDropzone = ({ onFileSelect, multiple = false }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [files, setFiles] = useState([]);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
   };
@@ -84,7 +81,7 @@ const FileDropzone: React.FC<{
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
     
@@ -98,7 +95,7 @@ const FileDropzone: React.FC<{
     }
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const fileArray = multiple 
         ? Array.from(e.target.files)
@@ -109,7 +106,7 @@ const FileDropzone: React.FC<{
     }
   };
 
-  const removeFile = (index: number) => {
+  const removeFile = (index) => {
     const newFiles = [...files];
     newFiles.splice(index, 1);
     setFiles(newFiles);
@@ -192,32 +189,32 @@ const unitFormSchema = z.object({
   ).optional()
 });
 
-const UnitsPage: React.FC = () => {
+const UnitsPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   
   // State management
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [filteredUnits, setFilteredUnits] = useState<Unit[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedFaculty, setSelectedFaculty] = useState<string>('all');
-  const [selectedSort, setSelectedSort] = useState<string>('recent');
-  const [faculties, setFaculties] = useState<Faculty[]>([]);
-  const [isAddUnitOpen, setIsAddUnitOpen] = useState<boolean>(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [keywordInput, setKeywordInput] = useState<string>('');
-  const [syllabusInput, setSyllabusInput] = useState<string>('');
-  const [prerequisiteInput, setPrerequisiteInput] = useState<string>('');
-  const [instructors, setInstructors] = useState<Instructor[]>([{ name: '', email: '', title: '' }]);
-  const [totalUnits, setTotalUnits] = useState<number>(0);
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
+  const [units, setUnits] = useState([]);
+  const [filteredUnits, setFilteredUnits] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState('all');
+  const [selectedSort, setSelectedSort] = useState('recent');
+  const [faculties, setFaculties] = useState([]);
+  const [isAddUnitOpen, setIsAddUnitOpen] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [keywordInput, setKeywordInput] = useState('');
+  const [syllabusInput, setSyllabusInput] = useState('');
+  const [prerequisiteInput, setPrerequisiteInput] = useState('');
+  const [instructors, setInstructors] = useState([{ name: '', email: '', title: '' }]);
+  const [totalUnits, setTotalUnits] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
-  // Initialize form
-  const form = useForm<z.infer<typeof unitFormSchema>>({
+  // Initialize form with default values
+  const form = useForm({
     resolver: zodResolver(unitFormSchema),
     defaultValues: {
       name: '',
@@ -254,18 +251,42 @@ const UnitsPage: React.FC = () => {
     fetchUnits();
   }, []);
   
-  // Apply filters when dependencies change or when fetch is triggered
+  // Apply filters when dependencies change
   useEffect(() => {
     if (units.length > 0) {
       filterUnits();
     }
   }, [units, selectedFaculty, searchQuery, selectedSort]);
   
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!isAddUnitOpen) {
+      form.reset({
+        name: '',
+        code: '',
+        description: '',
+        faculty: '',
+        facultyCode: '',
+        keywords: [],
+        level: 'Beginner',
+        credits: 3,
+        syllabus: [],
+        prerequisites: [],
+        instructors: []
+      });
+      setInstructors([{ name: '', email: '', title: '' }]);
+      setUploadedFiles([]);
+      setKeywordInput('');
+      setSyllabusInput('');
+      setPrerequisiteInput('');
+    }
+  }, [isAddUnitOpen, form]);
+  
   // Fetch faculties
   const fetchFaculties = async () => {
     try {
       // Try to fetch faculties from the API
-      const response = await apiGet<ApiResponse<Faculty[]>>('/faculties/');
+      const response = await apiGet('/faculties/');
       console.log('Faculties response:', response);
       
       if (response.status && response.data) {
@@ -300,24 +321,24 @@ const UnitsPage: React.FC = () => {
       setError(null);
       
       // Build query parameters
-      const params = new URLSearchParams();
+      const params = {};
       
       if (selectedFaculty !== 'all') {
-        params.append('faculty', selectedFaculty);
+        params.faculty = selectedFaculty;
       }
       
       if (searchQuery.trim()) {
-        params.append('query', searchQuery);
+        params.query = searchQuery;
       }
       
-      params.append('sort_by', selectedSort);
-      params.append('page', page.toString());
-      params.append('limit', '12'); // Adjust limit as needed
+      params.sort_by = selectedSort;
+      params.page = page.toString();
+      params.limit = '12'; // Adjust limit as needed
       
       // Make API call
-      const response = await apiGet<PaginatedResponse<Unit>>(`/units/?${params.toString()}`);
+      const response = await apiGet('/units/', params);
       
-      if (response.status && response.units) {
+      if (response.units) {
         setUnits(response.units || []);
         setTotalUnits(response.total || 0);
         setTotalPages(response.pages || 1);
@@ -327,7 +348,7 @@ const UnitsPage: React.FC = () => {
       }
       
       setIsLoading(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching units:', err);
       setError(err.message || 'Failed to fetch units');
       toast.error('Failed to load units 😔');
@@ -376,7 +397,7 @@ const UnitsPage: React.FC = () => {
   };
   
   // Handle search form submission
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e) => {
     e.preventDefault();
     setPage(1); // Reset to first page when searching
     fetchUnits(); // Re-fetch with new search parameters
@@ -396,7 +417,7 @@ const UnitsPage: React.FC = () => {
   };
   
   // Handle file upload
-  const handleFileSelect = (files: File[] | File) => {
+  const handleFileSelect = (files) => {
     if (Array.isArray(files)) {
       setUploadedFiles(files);
     } else if (files) {
@@ -414,7 +435,7 @@ const UnitsPage: React.FC = () => {
   };
   
   // Remove a keyword
-  const removeKeyword = (index: number) => {
+  const removeKeyword = (index) => {
     const currentKeywords = form.getValues('keywords') || [];
     const updatedKeywords = [...currentKeywords];
     updatedKeywords.splice(index, 1);
@@ -431,7 +452,7 @@ const UnitsPage: React.FC = () => {
   };
   
   // Remove syllabus item
-  const removeSyllabusItem = (index: number) => {
+  const removeSyllabusItem = (index) => {
     const currentSyllabus = form.getValues('syllabus') || [];
     const updatedSyllabus = [...currentSyllabus];
     updatedSyllabus.splice(index, 1);
@@ -448,7 +469,7 @@ const UnitsPage: React.FC = () => {
   };
   
   // Remove prerequisite
-  const removePrerequisite = (index: number) => {
+  const removePrerequisite = (index) => {
     const currentPrerequisites = form.getValues('prerequisites') || [];
     const updatedPrerequisites = [...currentPrerequisites];
     updatedPrerequisites.splice(index, 1);
@@ -457,79 +478,36 @@ const UnitsPage: React.FC = () => {
   
   // Add instructor
   const addInstructor = () => {
-    setInstructors([...instructors, { name: '', email: '', title: '' }]);
+    const newInstructor = { name: '', email: '', title: '' };
+    setInstructors([...instructors, newInstructor]);
+    
+    // Update the form value
+    const currentInstructors = form.getValues('instructors') || [];
+    form.setValue('instructors', [...currentInstructors, newInstructor]);
   };
   
   // Update instructor
-  const updateInstructor = (index: number, field: keyof Instructor, value: string) => {
+  const updateInstructor = (index, field, value) => {
     const updatedInstructors = [...instructors];
     updatedInstructors[index][field] = value;
     setInstructors(updatedInstructors);
+    
+    // Update the form value
     form.setValue('instructors', updatedInstructors);
   };
   
   // Remove instructor
-  const removeInstructor = (index: number) => {
+  const removeInstructor = (index) => {
     const updatedInstructors = [...instructors];
     updatedInstructors.splice(index, 1);
     setInstructors(updatedInstructors);
+    
+    // Update the form value
     form.setValue('instructors', updatedInstructors);
   };
   
-  // Handle form submission
-  const onSubmit = async (data: z.infer<typeof unitFormSchema>) => {
-    setIsUploading(true);
-    
-    try {
-      // Prepare form data with files
-      const formData = new FormData();
-      
-      // Add unit data
-      Object.entries(data).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          if (key === 'instructors') {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            value.forEach((item) => {
-              formData.append(`${key}[]`, item);
-            });
-          }
-        } else if (value !== undefined) {
-          formData.append(key, String(value));
-        }
-      });
-      
-      // Add files
-      uploadedFiles.forEach((file) => {
-        formData.append('files', file);
-      });
-      
-      // Send data to API
-      const response = await apiPost<ApiResponse<{ unit_id: string }>>('/units/', formData);
-      
-      if (response.success && response.data) {
-        toast.success('Unit created successfully! 🎉');
-        
-        // Reset form and state
-        form.reset();
-        setUploadedFiles([]);
-        setIsAddUnitOpen(false);
-        
-        // Re-fetch units to include the new one
-        fetchUnits();
-      } else {
-        toast.error(response.error || 'Failed to create unit');
-      }
-    } catch (error) {
-      console.error('Error creating unit:', error);
-      toast.error('Failed to create unit 😔');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-  
   // Handle faculty selection
-  const handleFacultySelect = (facultyCode: string) => {
+  const handleFacultySelect = (facultyCode) => {
     const faculty = faculties.find(f => f.code === facultyCode);
     
     if (faculty) {
@@ -538,23 +516,88 @@ const UnitsPage: React.FC = () => {
     }
   };
   
+  // Handle form submission
+  const onSubmit = async (formData) => {
+    console.log("Form submitted with data:", formData);
+    setIsUploading(true);
+    
+    try {
+      // Create FormData object
+      const payload = new FormData();
+      
+      // Add text fields directly
+      payload.append('name', formData.name);
+      payload.append('code', formData.code);
+      payload.append('description', formData.description);
+      payload.append('faculty', formData.faculty);
+      payload.append('facultyCode', formData.facultyCode);
+      payload.append('level', formData.level || 'Beginner');
+      payload.append('credits', String(formData.credits || 3));
+      
+      // Add arrays as JSON strings
+      payload.append('keywords', JSON.stringify(formData.keywords || []));
+      payload.append('syllabus', JSON.stringify(formData.syllabus || []));
+      payload.append('prerequisites', JSON.stringify(formData.prerequisites || []));
+      payload.append('instructors', JSON.stringify(formData.instructors || []));
+      
+      // Add files
+      if (uploadedFiles && uploadedFiles.length > 0) {
+        uploadedFiles.forEach((file) => {
+          payload.append('files', file);
+        });
+      }
+      
+      // Log the request payload for debugging
+      console.log("FormData prepared for submission");
+      
+      // Make API request using apiUpload instead of apiPost
+      const response = await apiUpload('/units/', payload);
+      console.log("API response:", response);
+      
+      if (response && response.success) {
+        toast.success('Unit created successfully! 🎉');
+        setIsAddUnitOpen(false);
+        fetchUnits(); // Refresh the units list
+        
+        // Reset form
+        form.reset({
+          name: '',
+          code: '',
+          description: '',
+          faculty: '',
+          facultyCode: '',
+          keywords: [],
+          level: 'Beginner',
+          credits: 3,
+          syllabus: [],
+          prerequisites: [],
+          instructors: []
+        });
+        setUploadedFiles([]);
+      } else {
+        const errorMessage = response?.error || 'Failed to create unit';
+        console.error("API error:", errorMessage);
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast.error(error.message || 'An unexpected error occurred');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
   // Get faculty color
-  const getFacultyColor = (facultyCode: string) => {
+  const getFacultyColor = (facultyCode) => {
     const faculty = faculties.find(f => f.code === facultyCode);
     return faculty ? faculty.color : colors.primary;
   };
   
   // Handle page change
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = (newPage) => {
     setPage(newPage);
-    
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Re-fetch units for the new page
-    setTimeout(() => {
-      fetchUnits();
-    }, 0);
+    setTimeout(() => fetchUnits(), 0);
   };
   
   return (
@@ -638,21 +681,34 @@ const UnitsPage: React.FC = () => {
                           />
                           
                           <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <FormLabel>Faculty</FormLabel>
-                              <Select onValueChange={handleFacultySelect}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a faculty" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {faculties.map(faculty => (
-                                    <SelectItem key={faculty.id} value={faculty.code}>
-                                      {faculty.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                            <FormField
+                              control={form.control}
+                              name="facultyCode"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Faculty</FormLabel>
+                                  <Select 
+                                    onValueChange={(value) => {
+                                      handleFacultySelect(value);
+                                      field.onChange(value);
+                                    }}
+                                    value={field.value}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a faculty" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {faculties.map(faculty => (
+                                        <SelectItem key={faculty.id} value={faculty.code}>
+                                          {faculty.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                             
                             <div className="grid grid-cols-2 gap-4">
                               <FormField
@@ -661,7 +717,11 @@ const UnitsPage: React.FC = () => {
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormLabel>Level</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select 
+                                      onValueChange={field.onChange} 
+                                      defaultValue={field.value}
+                                      value={field.value}
+                                    >
                                       <SelectTrigger>
                                         <SelectValue placeholder="Select level" />
                                       </SelectTrigger>
@@ -687,8 +747,8 @@ const UnitsPage: React.FC = () => {
                                         type="number" 
                                         min="1" 
                                         max="10" 
-                                        {...field} 
-                                        onChange={e => field.onChange(parseInt(e.target.value))} 
+                                        value={field.value} 
+                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} 
                                       />
                                     </FormControl>
                                     <FormMessage />
@@ -704,7 +764,13 @@ const UnitsPage: React.FC = () => {
                               <Input 
                                 placeholder="Add keyword" 
                                 value={keywordInput} 
-                                onChange={e => setKeywordInput(e.target.value)} 
+                                onChange={e => setKeywordInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addKeyword();
+                                  }
+                                }} 
                               />
                               <Button type="button" onClick={addKeyword}>Add</Button>
                             </div>
@@ -734,7 +800,13 @@ const UnitsPage: React.FC = () => {
                               <Input 
                                 placeholder="Add syllabus item" 
                                 value={syllabusInput} 
-                                onChange={e => setSyllabusInput(e.target.value)} 
+                                onChange={e => setSyllabusInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addSyllabusItem();
+                                  }
+                                }} 
                               />
                               <Button type="button" onClick={addSyllabusItem}>Add</Button>
                             </div>
@@ -764,7 +836,13 @@ const UnitsPage: React.FC = () => {
                               <Input 
                                 placeholder="Add prerequisite (e.g. CS101)" 
                                 value={prerequisiteInput} 
-                                onChange={e => setPrerequisiteInput(e.target.value)} 
+                                onChange={e => setPrerequisiteInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addPrerequisite();
+                                  }
+                                }} 
                               />
                               <Button type="button" onClick={addPrerequisite}>Add</Button>
                             </div>
@@ -861,6 +939,24 @@ const UnitsPage: React.FC = () => {
                         </TabsContent>
                       </Tabs>
                       
+                      <div className="bg-gray-50 p-4 rounded-md">
+                        <h4 className="font-medium mb-2">Form Validation Status</h4>
+                        <div className="text-sm">
+                          {Object.keys(form.formState.errors).length > 0 && (
+                            <ul className="text-red-500">
+                              {Object.entries(form.formState.errors).map(([field, error]) => (
+                                <li key={field}>
+                                  {field}: {error.message}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {Object.keys(form.formState.errors).length === 0 && (
+                            <p className="text-green-600">All required fields are valid</p>
+                          )}
+                        </div>
+                      </div>
+                      
                       <DialogFooter>
                         <Button 
                           type="button" 
@@ -873,7 +969,7 @@ const UnitsPage: React.FC = () => {
                         <Button 
                           type="submit" 
                           style={{ backgroundColor: colors.primary }}
-                          disabled={isUploading}
+                          disabled={isUploading || Object.keys(form.formState.errors).length > 0}
                         >
                           {isUploading ? 'Creating...' : 'Create Unit'}
                         </Button>

@@ -4,10 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Bookmark, ChevronLeft, ChevronRight, Highlighter, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import toast from 'react-hot-toast';
-import { PDFViewerProps } from '../types';
 
-// Using Mozilla's PDF.js which is more widely available and easier to set up
-// than PDFTron's WebViewer
 const PDFViewerComponent = ({ 
   pdfUrl, 
   initialPage = 1,
@@ -23,6 +20,7 @@ const PDFViewerComponent = ({
   const [activeReference, setActiveReference] = useState(null);
   const [pdfDocument, setPdfDocument] = useState(null);
   const [pdfInstance, setPdfInstance] = useState(null);
+  const [scale, setScale] = useState(1.0);
 
   // Load the PDF.js library
   useEffect(() => {
@@ -32,14 +30,14 @@ const PDFViewerComponent = ({
         if (window.pdfjsLib) return;
         
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js';
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
         script.crossOrigin = 'anonymous';
         script.async = true;
         document.body.appendChild(script);
         
         // Also load the worker
         const workerScript = document.createElement('script');
-        workerScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';      
+        workerScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';      
         workerScript.crossOrigin = 'anonymous';
         workerScript.async = true;
         document.body.appendChild(workerScript);
@@ -47,7 +45,7 @@ const PDFViewerComponent = ({
         return new Promise((resolve) => {
           script.onload = () => {
             // Configure worker
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
             resolve();
           };
         });
@@ -70,11 +68,10 @@ const PDFViewerComponent = ({
         setIsLoading(true);
         setError(null);
         
-        // Get absolute URL for the PDF
-       // Get URL for the PDF, concatenating with VITE_BACKEND_URL if not a full URL
+        // Get URL for the PDF, concatenating with VITE_BACKEND_URL if not a full URL
         const absoluteUrl = pdfUrl.startsWith('http') 
-        ? pdfUrl 
-        : `${import.meta.env.VITE_SERVER_BASE_URL}${pdfUrl}`;
+          ? pdfUrl 
+          : `${import.meta.env.VITE_SERVER_BASE_URL}${pdfUrl}`;
         
         // Load the PDF document
         const loadingTask = window.pdfjsLib.getDocument(absoluteUrl);
@@ -101,7 +98,7 @@ const PDFViewerComponent = ({
         pdfDocument.destroy();
       }
     };
-  }, [pdfUrl, window.pdfjsLib]);
+  }, [pdfUrl, initialPage]);
 
   // Render a specific page
   const renderPage = async (pdf, pageNumber) => {
@@ -111,29 +108,34 @@ const PDFViewerComponent = ({
       // Get the page
       const page = await pdf.getPage(pageNumber);
       
-      // Prepare canvas for rendering
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      
       // Clear previous content
       while (containerRef.current.firstChild) {
         containerRef.current.removeChild(containerRef.current.firstChild);
       }
       
-      // Add the canvas to the container
-      containerRef.current.appendChild(canvas);
+      // Create page container
+      const pageContainer = document.createElement('div');
+      pageContainer.className = 'pdfPage';
+      pageContainer.style.position = 'relative';
+      containerRef.current.appendChild(pageContainer);
       
       // Calculate scale to fit the container
       const containerWidth = containerRef.current.clientWidth;
       const viewport = page.getViewport({ scale: 1 });
-      const scale = containerWidth / viewport.width;
-      const scaledViewport = page.getViewport({ scale });
+      const pageScale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale: pageScale * scale });
       
-      // Set canvas dimensions
+      // Create canvas for rendering
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdfCanvas';
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
+      pageContainer.style.width = `${scaledViewport.width}px`;
+      pageContainer.style.height = `${scaledViewport.height}px`;
+      pageContainer.appendChild(canvas);
       
-      // Render the page
+      // Render the page content on canvas
+      const context = canvas.getContext('2d');
       const renderContext = {
         canvasContext: context,
         viewport: scaledViewport,
@@ -142,10 +144,7 @@ const PDFViewerComponent = ({
       const renderTask = page.render(renderContext);
       await renderTask.promise;
       
-      setCurrentPage(pageNumber);
-      
-      // Text layer for highlighting (simplified for now)
-      const textContent = await page.getTextContent();
+      // Create text layer div
       const textLayerDiv = document.createElement('div');
       textLayerDiv.className = 'textLayer';
       textLayerDiv.style.position = 'absolute';
@@ -153,13 +152,94 @@ const PDFViewerComponent = ({
       textLayerDiv.style.left = '0';
       textLayerDiv.style.width = '100%';
       textLayerDiv.style.height = '100%';
-      containerRef.current.appendChild(textLayerDiv);
+      textLayerDiv.style.color = 'transparent';
+      textLayerDiv.style.pointerEvents = 'none';
+      pageContainer.appendChild(textLayerDiv);
+      
+      // Get text content for text layer
+      const textContent = await page.getTextContent();
+      
+      // Load text layer builder if available
+      if (window.pdfjsLib.renderTextLayer) {
+        // Use the built-in text layer renderer from PDF.js
+        const textLayer = window.pdfjsLib.renderTextLayer({
+          textContent: textContent,
+          container: textLayerDiv,
+          viewport: scaledViewport,
+          textDivs: []
+        });
+        await textLayer.promise;
+      } else {
+        // Fallback implementation without rendering library
+        // This is a simplified version - in a real app, you'd want to use the full text layer implementation
+        textContent.items.forEach(item => {
+          const tx = window.pdfjsLib.Util.transform(
+            viewport.transform,
+            item.transform
+          );
+          
+          const style = textContent.styles[item.fontName];
+          const fontSize = Math.sqrt((tx[2] * tx[2]) + (tx[3] * tx[3]));
+          
+          const textDiv = document.createElement('span');
+          textDiv.textContent = item.str;
+          textDiv.style.position = 'absolute';
+          textDiv.style.transform = `scaleX(${tx[0]}) scaleY(${tx[3]})`;
+          textDiv.style.left = `${tx[4]}px`;
+          textDiv.style.top = `${tx[5]}px`;
+          textDiv.style.fontSize = `${fontSize}px`;
+          textDiv.style.fontFamily = style.fontFamily;
+          
+          textLayerDiv.appendChild(textDiv);
+        });
+      }
+      
+      // Add a transparent overlay for text selection
+      const textSelectionOverlay = document.createElement('div');
+      textSelectionOverlay.className = 'textSelectionOverlay';
+      textSelectionOverlay.style.position = 'absolute';
+      textSelectionOverlay.style.top = '0';
+      textSelectionOverlay.style.left = '0';
+      textSelectionOverlay.style.width = '100%';
+      textSelectionOverlay.style.height = '100%';
+      textSelectionOverlay.style.backgroundColor = 'transparent';
+      pageContainer.appendChild(textSelectionOverlay);
+      
+      // Add styles needed for text selection
+      const style = document.createElement('style');
+      style.textContent = `
+        .textLayer {
+          opacity: 0.2;
+          line-height: 1.0;
+        }
+        .textLayer span {
+          color: transparent;
+          position: absolute;
+          white-space: pre;
+          cursor: text;
+          transform-origin: 0% 0%;
+        }
+        .textLayer .highlight {
+          margin: -1px;
+          padding: 1px;
+          background-color: rgba(255, 255, 0, 0.4);
+          border-radius: 4px;
+        }
+        .textLayer ::selection { background: rgba(0, 0, 255, 0.3); }
+        .textSelectionOverlay {
+          cursor: text;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      setCurrentPage(pageNumber);
       
       // Store the instance for later use
       setPdfInstance({ 
         pdf, 
         currentPage: pageNumber,
-        viewport: scaledViewport
+        viewport: scaledViewport,
+        page
       });
     } catch (err) {
       console.error('Error rendering page:', err);
@@ -186,15 +266,56 @@ const PDFViewerComponent = ({
 
   // Enable text highlighting mode
   const enableHighlightMode = () => {
+    if (!containerRef.current) return;
+    
     toast.success("Highlight mode enabled. Select text to highlight.");
-    // This would require more complex implementation with PDF.js
-    if (onSaveHighlight) {
-      onSaveHighlight({
-        pageNumber: currentPage,
-        text: "Text would be highlighted here in a complete implementation",
-        color: "#FFFF00"
-      });
-    }
+    
+    // Setup selection event
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      if (selection.toString().trim() === '') return;
+      
+      // Get selection details
+      const range = selection.getRangeAt(0);
+      const selectedText = selection.toString();
+      
+      // Add highlight class to selected elements
+      const selectedSpans = [];
+      const iterator = document.createNodeIterator(
+        containerRef.current,
+        NodeFilter.SHOW_TEXT,
+        { acceptNode: (node) => range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT }
+      );
+      
+      let currentNode;
+      while (currentNode = iterator.nextNode()) {
+        const span = currentNode.parentNode;
+        if (span.tagName === 'SPAN') {
+          span.classList.add('highlight');
+          selectedSpans.push(span);
+        }
+      }
+      
+      // Call highlight callback
+      if (onSaveHighlight) {
+        onSaveHighlight({
+          pageNumber: currentPage,
+          text: selectedText,
+          color: "#FFFF00"
+        });
+      }
+      
+      // Clear selection after highlighting
+      selection.removeAllRanges();
+    };
+    
+    // Add event listener for mouseup to capture selection
+    containerRef.current.addEventListener('mouseup', handleSelection);
+    
+    // Return cleanup function
+    return () => {
+      containerRef.current.removeEventListener('mouseup', handleSelection);
+    };
   };
 
   // Save current page as bookmark
@@ -207,6 +328,27 @@ const PDFViewerComponent = ({
     });
     
     toast.success(`Page ${currentPage} bookmarked!`);
+  };
+
+  // Zoom controls
+  const zoomIn = () => {
+    setScale(prevScale => {
+      const newScale = Math.min(prevScale + 0.1, 3.0);
+      if (pdfDocument) {
+        renderPage(pdfDocument, currentPage);
+      }
+      return newScale;
+    });
+  };
+
+  const zoomOut = () => {
+    setScale(prevScale => {
+      const newScale = Math.max(prevScale - 0.1, 0.5);
+      if (pdfDocument) {
+        renderPage(pdfDocument, currentPage);
+      }
+      return newScale;
+    });
   };
 
   if (error) {
@@ -261,6 +403,26 @@ const PDFViewerComponent = ({
         </div>
         
         <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={zoomOut}
+          >
+            -
+          </Button>
+          
+          <span className="text-sm px-2">
+            {Math.round(scale * 100)}%
+          </span>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={zoomIn}
+          >
+            +
+          </Button>
+          
           <Button 
             variant="outline" 
             size="sm" 

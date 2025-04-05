@@ -5,14 +5,17 @@ from bson import ObjectId
 from datetime import datetime
 from functools import wraps
 import jwt
+from app import mongo
+import os
+import json
+from werkzeug.utils import secure_filename
 
 # Import auth decorators
 from .auth import token_required, role_required
 
 # Initialize MongoDB client
-mongo_client = MongoClient('mongodb://localhost:27017/')
-db = mongo_client['syllabuzz']
-units_collection = db['units']
+db = mongo.db
+units_collection = db.units
 
 # Create units blueprint
 units_bp = Blueprint('units', __name__, url_prefix='/api/units')
@@ -106,54 +109,118 @@ def get_unit(unit_id):
 
 @units_bp.route('/', methods=['POST'])
 @token_required
-@role_required(['admin', 'moderator'])
 def create_unit(current_user):
-    """Create a new unit (admin/moderator only)"""
+    """Create a new unit"""
     try:
-        data = request.json
+        current_app.logger.info(f"Request form data: {request.form}")
+        current_app.logger.info(f"Request files: {request.files}")
+        
+        # Process form data
+        data = {}
+        
+        # Handle basic text fields
+        for field in ['name', 'code', 'description', 'faculty', 'facultyCode', 'level']:
+            if field in request.form:
+                data[field] = request.form.get(field)
+        
+        # Handle credits field (convert to integer)
+        if 'credits' in request.form:
+            try:
+                data['credits'] = int(request.form.get('credits'))
+            except ValueError:
+                data['credits'] = 3  # Default value
+        
+        # Parse JSON array fields
+        for field in ['keywords', 'syllabus', 'prerequisites', 'instructors']:
+            if field in request.form:
+                try:
+                    # Try to parse as JSON
+                    data[field] = json.loads(request.form.get(field))
+                except json.JSONDecodeError:
+                    # Fallback: split by comma if simple string
+                    if field != 'instructors':  # Instructors is complex, should be valid JSON
+                        data[field] = [item.strip() for item in request.form.get(field).split(',') if item.strip()]
+                    else:
+                        data[field] = []
+        
+        # Handle file uploads
+        uploaded_files = []
+        if 'files' in request.files:
+            files = request.files.getlist('files')
+            
+            for file in files:
+                if file and file.filename:
+                    # Secure the filename
+                    filename = secure_filename(file.filename)
+                    
+                    # Create directory if it doesn't exist
+                    upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'units')
+                    os.makedirs(upload_folder, exist_ok=True)
+                    
+                    # Save file
+                    file_path = os.path.join(upload_folder, filename)
+                    file.save(file_path)
+                    
+                    # Store file info
+                    uploaded_files.append({
+                        'filename': filename,
+                        'path': file_path,
+                        'mime_type': file.content_type,
+                        'size': os.path.getsize(file_path)
+                    })
+        
+        # Add uploaded files to data
+        if uploaded_files:
+            data['files'] = uploaded_files
         
         # Check required fields
         required_fields = ['name', 'code', 'faculty', 'facultyCode']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'status': 'error', 'message': f'Field {field} is required'}), 400
+        missing_fields = [field for field in required_fields if field not in data or not data[field]]
+        
+        if missing_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
         
         # Check if unit code already exists
         existing_unit = units_collection.find_one({'code': data['code']})
         if existing_unit:
-            return jsonify({'status': 'error', 'message': 'Unit code already exists'}), 409
+            return jsonify({
+                'success': False,
+                'error': 'Unit code already exists'
+            }), 409
         
-        # Prepare unit document
+        # Prepare unit document with all data
         new_unit = {
-            'name': data['name'],
-            'code': data['code'],
-            'description': data.get('description', ''),
-            'faculty': data['faculty'],
-            'facultyCode': data['facultyCode'],
-            'keywords': data.get('keywords', []),
+            **data,
             'created_at': datetime.now(),
             'created_by': str(current_user['_id']),
-            'syllabus': data.get('syllabus', []),
-            'prerequisites': data.get('prerequisites', []),
-            'instructors': data.get('instructors', []),
-            'credits': data.get('credits'),
-            'level': data.get('level', '')
         }
         
         # Insert unit into database
         result = units_collection.insert_one(new_unit)
         unit_id = str(result.inserted_id)
         
+        current_app.logger.info(f"Successfully created unit with ID: {unit_id}")
+        
         return jsonify({
-            'status': 'success',
+            'success': True,
             'message': 'Unit created successfully',
-            'unit_id': unit_id
+            'data': {
+                'unit_id': unit_id
+            }
         })
         
     except Exception as e:
         current_app.logger.error(f"Error creating unit: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Failed to create unit: {str(e)}'
+        }), 500
+    
 @units_bp.route('/<unit_id>', methods=['PUT'])
 @token_required
 @role_required(['admin', 'moderator'])
