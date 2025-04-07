@@ -61,6 +61,7 @@ services:
       VITE_SERVER_BASE_URL: https://server.syllabuzz.buzz
     depends_on:
       - server
+      - backend
 
   proxy-manager:
     image: 'jc21/nginx-proxy-manager:latest'
