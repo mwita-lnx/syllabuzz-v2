@@ -11,7 +11,10 @@ import {
   BookA,
   GraduationCap,
   BookCopy,
-  FileText
+  FileText,
+  Upload,
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -19,6 +22,7 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Separator } from '../components/ui/separator';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext'; // Import the auth hook
+import { getSavedItems, SavedItem } from '../services/saved-items-servicei'; // Import the saved items service
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -32,6 +36,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   // State management
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState<boolean>(true);
   
   // Theme colors
   const colors = {
@@ -49,6 +55,36 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
   
   // Add custom CSS for animations and custom font
+  // Fetch saved items
+  useEffect(() => {
+    const fetchSavedItems = async () => {
+      try {
+        setIsLoadingSaved(true);
+        const response = await getSavedItems();
+        if (response.status === 'success') {
+          setSavedItems(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching saved items:', error);
+      } finally {
+        setIsLoadingSaved(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchSavedItems();
+    }
+    
+    // Refresh saved items every 5 minutes
+    const intervalId = setInterval(() => {
+      if (isAuthenticated) {
+        fetchSavedItems();
+      }
+    }, 300000);
+
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated]);
+
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -312,6 +348,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             >
               <GraduationCap className="w-4 h-4 mr-2" /> Revision Room
             </Button>
+            {/* Added Search link for mobile */}
+            <Button 
+              variant="ghost" 
+              className="justify-start hover:bg-opacity-20 transition-colors" 
+              onClick={() => {navigate('/search'); setIsMenuOpen(false);}}
+              style={{ color: isActiveRoute('/search') ? colors.primary : colors.textPrimary }}
+            >
+              <Search className="w-4 h-4 mr-2" /> Advanced Search
+            </Button>
+            {/* Added Upload link for mobile */}
+            <Button 
+              variant="ghost" 
+              className="justify-start hover:bg-opacity-20 transition-colors" 
+              onClick={() => {navigate('/upload'); setIsMenuOpen(false);}}
+              style={{ color: isActiveRoute('/upload') ? colors.primary : colors.textPrimary }}
+            >
+              <Upload className="w-4 h-4 mr-2" /> Upload Material
+            </Button>
             <Separator className="my-2" style={{ backgroundColor: colors.border }} />
             <div className="flex items-center gap-2 p-2">
               <Avatar className="border-2" style={{ borderColor: colors.primary }}>
@@ -396,6 +450,30 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             >
               <GraduationCap className="w-4 h-4 mr-2" /> Revision Room
             </Button>
+            {/* Added Search link for desktop */}
+            <Button 
+              variant={isActiveRoute('/search') ? 'default' : 'ghost'} 
+              className="w-full justify-start transition-colors font-medium"
+              onClick={() => navigate('/search')}
+              style={{ 
+                backgroundColor: isActiveRoute('/search') ? colors.primary : 'transparent',
+                color: isActiveRoute('/search') ? colors.textPrimary : colors.textPrimary
+              }}
+            >
+              <Search className="w-4 h-4 mr-2" /> Advanced Search
+            </Button>
+            {/* Added Upload link for desktop */}
+            <Button 
+              variant={isActiveRoute('/upload') ? 'default' : 'ghost'} 
+              className="w-full justify-start transition-colors font-medium"
+              onClick={() => navigate('/upload')}
+              style={{ 
+                backgroundColor: isActiveRoute('/upload') ? colors.primary : 'transparent',
+                color: isActiveRoute('/upload') ? colors.textPrimary : colors.textPrimary
+              }}
+            >
+              <Upload className="w-4 h-4 mr-2" /> Upload Material
+            </Button>
 
             <Separator className="my-4" style={{ backgroundColor: colors.border }} />
 
@@ -412,9 +490,72 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 <BookmarkPlus className="w-4 h-4" /> Saved Content
               </h3>
               <div className="space-y-1 overflow-auto" style={{ maxHeight: '12rem' }}>
-                <p className="text-sm text-center py-4" style={{ color: colors.textSecondary }}>
-                  Your bookmarked content will appear here.
-                </p>
+                {isLoadingSaved ? (
+                  <p className="text-sm text-center py-4" style={{ color: colors.textSecondary }}>
+                    Loading your saved content...
+                  </p>
+                ) : savedItems.length === 0 ? (
+                  <p className="text-sm text-center py-4" style={{ color: colors.textSecondary }}>
+                    You haven't saved any content yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {savedItems.slice(0, 5).map((item) => {
+                      // Determine title and route based on item type
+                      let title = '';
+                      let route = '';
+                      let icon = null;
+                      
+                      if (item.details) {
+                        if (item.item_type === 'unit') {
+                          title = item.details.name || item.details.code || 'Unit';
+                          route = `/units/${item.item_id}`;
+                          icon = <BookA className="w-3 h-3 flex-shrink-0" style={{ color: colors.primary }} />;
+                        } else if (item.item_type === 'note') {
+                          title = item.details.title || 'Note';
+                          route = `/notes/${item.item_id}`;
+                          icon = <BookCopy className="w-3 h-3 flex-shrink-0" style={{ color: colors.primary }} />;
+                        } else if (item.item_type === 'pastpaper') {
+                          title = item.details.title || `${item.details.year || ''} ${item.details.exam_type || ''}`.trim() || 'Past Paper';
+                          route = `/pastpapers/${item.item_id}`;
+                          icon = <FileText className="w-3 h-3 flex-shrink-0" style={{ color: colors.primary }} />;
+                        }
+                      }
+                      
+                      // Format saved date
+                      const savedDate = new Date(item.saved_at);
+                      const formattedDate = savedDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                      });
+                      
+                      return (
+                        <div 
+                          key={item.id}
+                          className="p-2 rounded hover:bg-opacity-10 cursor-pointer transition-colors text-sm"
+                          style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
+                          onClick={() => navigate(route)}
+                        >
+                          <div className="flex items-start gap-2">
+                            {icon}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate" style={{ color: colors.textPrimary }}>
+                                {title}
+                              </p>
+                              <div className="flex items-center gap-1 mt-1">
+                                <Clock className="w-3 h-3" style={{ color: colors.textSecondary }} />
+                                <span className="text-xs" style={{ color: colors.textSecondary }}>
+                                  {formattedDate}
+                                </span>
+                              </div>
+                            </div>
+                            <ExternalLink className="w-3 h-3 mt-1" style={{ color: colors.textSecondary }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <Separator className="my-2" style={{ backgroundColor: colors.border }} />
               <div className="flex justify-center">
@@ -424,8 +565,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   className="w-full mt-2 text-xs"
                   onClick={() => navigate('/saved')}
                   style={{ borderColor: colors.primary, color: colors.primary }}
+                  disabled={isLoadingSaved}
                 >
-                  View All Saved Content
+                  {isLoadingSaved ? 'Loading...' : `View All Saved Content (${savedItems.length})`}
                 </Button>
               </div>
             </div>

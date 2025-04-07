@@ -14,6 +14,8 @@ import UploadPage from './pages/upload';
 import LoginPage from './pages/auth/login';
 import RegisterPage from './pages/auth/register';
 
+import AdvancedSearchPage from './pages/search/AdvancedSearch';
+
 
 
 
@@ -44,6 +46,11 @@ const App: React.FC = () => {
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+
+        {/* Search Routes */}
+        <Route path="/search" element={<AdvancedSearchPage />} />
+        <Route path="/search/:query" element={<AdvancedSearchPage />} />
+
       
         {/* Add more routes as needed */}
 
