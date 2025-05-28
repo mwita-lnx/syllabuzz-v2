@@ -7,7 +7,7 @@ SyllaBuzz is a comprehensive application for universities to manage courses, uni
 1. **Course and Unit Management**: Organize university curriculum by courses and units
 2. **Past Paper Analysis**: Extract questions from past exam papers and CATs using NLP
 3. **Semantic Search**: Find related questions and notes using sentence transformer embeddings
-4. **Question Grouping**: Identify similar questions that have appeared in multiple exams
+4. **Question Grouping**: Identify similar questions that have appeared in multiple examss
 5. **Note Linking**: Connect questions to relevant sections in lecture notes
 6. **Search Functionality**: Semantic search across questions and notes
 
