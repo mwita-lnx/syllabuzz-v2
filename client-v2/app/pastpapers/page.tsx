@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   FileText, Filter, Calendar, Download, ExternalLink, Search, 
   ArrowUpDown, BookOpen, Lightbulb, BarChart2, List, Grid, PieChart,
-  Clock, AlignJustify, Sparkles, Info, GraduationCap,
+  Clock, AlignJustify, Sparkles, Info, GraduationCap, Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,12 +21,14 @@ import { Separator } from '@/components/ui/separator';
 import { MainLayout } from '@/components/MainLayout';
 import { FacultySelector } from '@/components/FacultySelector';
 import { PastPaperCard } from '@/components/PastPaperCard';
+import { PastPaperUploadDialog } from '@/components/PastPaperUploadDialog';
 
 // Import past paper service
 import { pastPaperService, PastPaper, PastPaperUnit } from '@/services/pastpaper-service';
 
 // Import types
 import { Faculty } from '@/types/index2';
+import toast from 'react-hot-toast';
 
 // Animation component for transitions
 const FadeIn = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
@@ -108,76 +110,17 @@ export default function PastPapersPage() {
     try {
       setIsLoading(true);
       
-      // Mock data for now - replace with actual API calls
-      const mockPastPapers: PastPaper[] = [
-        {
-          _id: '1',
-          title: 'Data Structures & Algorithms Final Exam',
-          unit_id: '1',
-          unit_name: 'Data Structures and Algorithms',
-          unit_code: 'CS202',
-          year: '2023',
-          exam_type: 'Final',
-          semester: 'Spring',
-          stream: 'Regular',
-          date: '2023-06-15',
-          time: '09:00',
-          session: 'Morning',
-          file_path: '/files/CS202_2023_Final.pdf',
-          created_at: '2023-07-01',
-          updated_at: '2023-07-01',
-          faculty: 'Science',
-          faculty_code: 'sci',
-          difficulty: 'Medium',
-          total_questions: 10,
-          total_marks: 100,
-          average_score: 68,
-          topics: ['Arrays', 'Linked Lists', 'Trees', 'Graphs', 'Sorting']
-        },
-        {
-          _id: '2',
-          title: 'Introduction to Marketing Midterm',
-          unit_id: '2',
-          unit_name: 'Introduction to Marketing',
-          unit_code: 'MKT101',
-          year: '2023',
-          exam_type: 'Midterm',
-          semester: 'Fall',
-          stream: 'Regular',
-          date: '2023-10-20',
-          time: '14:00',
-          session: 'Afternoon',
-          file_path: '/files/MKT101_2023_Midterm.pdf',
-          created_at: '2023-11-05',
-          updated_at: '2023-11-05',
-          faculty: 'Business',
-          faculty_code: 'bus',
-          difficulty: 'Easy',
-          total_questions: 30,
-          total_marks: 60,
-          average_score: 45,
-          topics: ['Marketing Principles', 'Consumer Behavior', 'Market Research']
-        }
-      ];
+      // Fetch past papers and units from API
+      const [papersResult, unitsData] = await Promise.all([
+        pastPaperService.getAllPastPapers({ 
+          limit: 100,
+          sort: 'year',
+          order: 'desc'
+        }),
+        pastPaperService.getUnitsWithPastPapers()
+      ]);
       
-      const mockUnits: PastPaperUnit[] = [
-        {
-          _id: '1',
-          name: 'Data Structures and Algorithms',
-          code: 'CS202',
-          course_id: 'cs',
-          description: 'Advanced data structures and algorithm analysis'
-        },
-        {
-          _id: '2',
-          name: 'Introduction to Marketing',
-          code: 'MKT101',
-          course_id: 'bus',
-          description: 'Fundamentals of marketing principles and practices'
-        }
-      ];
-      
-      // Mock AI suggestions
+      // Mock AI suggestions for now
       const mockAiSuggestions = [
         {
           id: 1,
@@ -192,15 +135,16 @@ export default function PastPapersPage() {
         }
       ];
       
-      setPastPapers(mockPastPapers);
-      setUnits(mockUnits);
+      setPastPapers(papersResult.pastpapers);
+      setUnits(unitsData);
       setAiSuggestions(mockAiSuggestions);
       setIsLoading(false);
       
       // Calculate statistics
-      calculatePaperStats(mockPastPapers);
+      calculatePaperStats(papersResult.pastpapers);
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Failed to load past papers. Please try again.');
       setIsLoading(false);
     }
   };
@@ -320,13 +264,29 @@ export default function PastPapersPage() {
   };
   
   // Handle search form submission
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    filterPastPapers();
+    
+    if (!searchQuery.trim()) {
+      filterPastPapers();
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const searchResults = await pastPaperService.searchPastPapers(searchQuery);
+      setPastPapers(searchResults);
+      calculatePaperStats(searchResults);
+    } catch (error) {
+      console.error('Error searching past papers:', error);
+      toast.error('Search failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Reset all filters
-  const resetFilters = () => {
+  const resetFilters = async () => {
     setSearchQuery('');
     setSelectedUnit('all');
     setSelectedYear('all');
@@ -334,11 +294,19 @@ export default function PastPapersPage() {
     setSelectedFaculty('all');
     setSelectedDifficulty('all');
     setSortOrder('newest');
+    
+    // Refetch all data
+    await fetchData();
   };
   
   // View paper details
   const viewPaperDetails = (paper: PastPaper) => {
     router.push(`/pastpapers/${paper._id}`);
+  };
+
+  // Handle upload success
+  const handleUploadSuccess = () => {
+    fetchData(); // Refresh the data
   };
   
   // Format date
@@ -465,9 +433,23 @@ export default function PastPapersPage() {
               {/* Filters Section */}
               <Card className="mb-6" style={{ backgroundColor: colors.surface }}>
                 <CardHeader>
-                  <CardTitle className="flex items-center text-lg" style={{ color: colors.tertiary }}>
-                    <Filter className="w-5 h-5 mr-2" /> Filter Past Papers
-                  </CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center text-lg" style={{ color: colors.tertiary }}>
+                      <Filter className="w-5 h-5 mr-2" /> Filter Past Papers
+                    </CardTitle>
+                    <PastPaperUploadDialog 
+                      units={units}
+                      onUploadSuccess={handleUploadSuccess}
+                      triggerButton={
+                        <Button 
+                          className="flex items-center gap-1"
+                          style={{ backgroundColor: colors.primary, color: 'white' }}
+                        >
+                          <Upload className="w-4 h-4" /> Upload Paper
+                        </Button>
+                      }
+                    />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">

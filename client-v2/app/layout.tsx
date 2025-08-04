@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotesProvider } from "@/contexts/NotesContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ConfigInitializer from "@/components/ConfigInitializer";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
         <ErrorBoundary>
+          <ConfigInitializer />
           <AuthProvider>
             <NotesProvider>
               {children}

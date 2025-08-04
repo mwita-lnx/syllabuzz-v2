@@ -54,6 +54,7 @@ import { PastPaperQuestionCard } from '@/components/PastPaperQuestionCard';
 
 // Import services and types
 import { pastPaperService, PastPaper } from '@/services/pastpaper-service';
+import toast from 'react-hot-toast';
 
 // Animation component for transitions
 const FadeIn = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
@@ -109,173 +110,29 @@ export default function PaperDetailsPage() {
       
       setIsLoading(true);
       try {
-        // Mock data for now - replace with actual API call
-        const mockPaper: PastPaper = {
-          _id: paperId,
-          title: 'Data Structures & Algorithms Final Exam',
-          unit_id: '1',
-          unit_name: 'Data Structures and Algorithms',
-          unit_code: 'CS202',
-          year: '2023',
-          exam_type: 'Final',
-          semester: 'Spring',
-          stream: 'Regular',
-          date: '2023-06-15',
-          time: '09:00',
-          session: 'Morning',
-          file_path: '/files/CS202_2023_Final.pdf',
-          created_at: '2023-07-01',
-          updated_at: '2023-07-01',
-          faculty: 'Science',
-          faculty_code: 'sci',
-          difficulty: 'Medium',
-          total_questions: 5,
-          total_marks: 100,
-          average_score: 68,
-          topics: ['Arrays', 'Linked Lists', 'Trees', 'Graphs', 'Sorting'],
-          instructions: [
-            'Answer ALL questions',
-            'All questions carry equal marks',
-            'Time allowed: 3 hours',
-            'Use of calculators is not permitted'
-          ],
-          questions: [
-            {
-              id: '1',
-              question_number: '1',
-              text: 'Explain the time complexity analysis of different sorting algorithms.',
-              marks: 20,
-              compulsory: true,
-              subquestions: [
-                {
-                  id: '1a',
-                  text: 'Compare and contrast merge sort and quick sort algorithms.',
-                  marks: 10,
-                  subparts: [
-                    {
-                      id: '1a1',
-                      text: 'Analyze the best-case time complexity',
-                      marks: 5
-                    },
-                    {
-                      id: '1a2', 
-                      text: 'Analyze the worst-case time complexity',
-                      marks: 5
-                    }
-                  ]
-                },
-                {
-                  id: '1b',
-                  text: 'Implement the merge sort algorithm in pseudocode.',
-                  marks: 10
-                }
-              ]
-            },
-            {
-              id: '2',
-              question_number: '2',
-              text: 'Design and implement a binary search tree with the following operations.',
-              marks: 20,
-              compulsory: true,
-              subquestions: [
-                {
-                  id: '2a',
-                  text: 'Insert operation',
-                  marks: 7
-                },
-                {
-                  id: '2b',
-                  text: 'Delete operation',
-                  marks: 7
-                },
-                {
-                  id: '2c',
-                  text: 'Search operation',
-                  marks: 6
-                }
-              ]
-            }
-          ],
-          sections: [
-            {
-              section: 'A',
-              title: 'Algorithms and Analysis',
-              total_marks: 60,
-              instructions: ['Answer ALL questions in this section', 'Each question carries equal marks'],
-              questions: [
-                {
-                  id: '1',
-                  question_number: '1',
-                  text: 'Analyze the time complexity of recursive algorithms.',
-                  marks: 30,
-                  compulsory: true
-                },
-                {
-                  id: '2', 
-                  question_number: '2',
-                  text: 'Compare different graph traversal algorithms.',
-                  marks: 30,
-                  compulsory: true
-                }
-              ]
-            },
-            {
-              section: 'B',
-              title: 'Data Structures',
-              total_marks: 40,
-              instructions: ['Answer ANY TWO questions from this section'],
-              questions: [
-                {
-                  id: '3',
-                  question_number: '3',
-                  text: 'Implement a hash table with collision resolution.',
-                  marks: 20,
-                  compulsory: false
-                },
-                {
-                  id: '4',
-                  question_number: '4', 
-                  text: 'Design a priority queue using heaps.',
-                  marks: 20,
-                  compulsory: false
-                }
-              ]
-            }
-          ]
-        };
+        // Fetch paper details from API
+        const paperDetails = await pastPaperService.getPastPaper(paperId);
         
-        setPaper(mockPaper);
-        
-        // Mock related papers
-        const mockRelatedPapers: PastPaper[] = [
-          {
-            _id: '2',
-            title: 'Data Structures Midterm 2023',
-            unit_id: '1',
-            unit_name: 'Data Structures and Algorithms',
-            unit_code: 'CS202',
-            year: '2023',
-            exam_type: 'Midterm',
-            semester: 'Spring',
-            stream: 'Regular',
-            date: '2023-03-15',
-            time: '14:00',
-            session: 'Afternoon',
-            file_path: '/files/CS202_2023_Midterm.pdf',
-            created_at: '2023-03-20',
-            updated_at: '2023-03-20',
-            faculty: 'Science',
-            faculty_code: 'sci',
-            difficulty: 'Easy',
-            total_questions: 4,
-            total_marks: 60,
-            topics: ['Arrays', 'Stacks', 'Queues']
-          }
-        ];
-        
-        setRelatedPapers(mockRelatedPapers);
+        if (paperDetails) {
+          setPaper(paperDetails);
+          
+          // Fetch related papers (same unit or exam type)
+          const allPapersResult = await pastPaperService.getAllPastPapers({ 
+            limit: 10 
+          });
+          
+          const related = allPapersResult.pastpapers.filter(p => 
+            p._id !== paperDetails._id && 
+            (p.unit_id === paperDetails.unit_id || p.exam_type === paperDetails.exam_type)
+          ).slice(0, 3);
+          
+          setRelatedPapers(related);
+        } else {
+          toast.error('Paper not found');
+        }
       } catch (error) {
         console.error('Error fetching paper details:', error);
+        toast.error('Failed to load paper details. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -316,9 +173,12 @@ export default function PaperDetailsPage() {
         a.click();
         window.URL.revokeObjectURL(url);
         a.remove();
+      } else {
+        toast.error('Paper file not available for download.');
       }
     } catch (error) {
       console.error('Error downloading past paper:', error);
+      toast.error('Download failed. Please try again.');
     }
   };
   
@@ -331,10 +191,14 @@ export default function PaperDetailsPage() {
         const success = await pastPaperService.deletePastPaper(paper._id);
         
         if (success) {
+          toast.success('Past paper deleted successfully');
           router.push('/pastpapers');
+        } else {
+          toast.error('Failed to delete past paper');
         }
       } catch (error) {
         console.error('Error deleting past paper:', error);
+        toast.error('Delete failed. Please try again.');
       }
     }
   };

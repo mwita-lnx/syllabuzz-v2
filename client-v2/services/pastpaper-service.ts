@@ -72,15 +72,74 @@ export interface PastPaperUnit {
 
 // Service for past paper operations
 class PastPaperService {
-  private baseUrl = 'http://127.0.0.1:5000/api';
+  private baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+
+  // Get all past papers (with optional filtering)
+  async getAllPastPapers(filters?: {
+    unit_id?: string;
+    unit_code?: string;
+    faculty_code?: string;
+    year?: string;
+    semester?: string;
+    exam_type?: string;
+    difficulty?: string;
+    search?: string;
+    sort?: string;
+    order?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }): Promise<{ pastpapers: PastPaper[]; pagination: any }> {
+    try {
+      const params = new URLSearchParams();
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== '') {
+            params.append(key, value.toString());
+          }
+        });
+      }
+      
+      const response = await axios.get(`${this.baseUrl}/pastpapers?${params.toString()}`);
+      return {
+        pastpapers: response.data.data.map((paper: any) => ({
+          _id: paper.id,
+          title: paper.title,
+          unit_id: paper.unit_id,
+          unit_name: paper.unit_name,
+          unit_code: paper.unit_code,
+          year: paper.year,
+          exam_type: paper.exam_type,
+          semester: paper.semester,
+          stream: paper.stream || 'Regular',
+          date: paper.created_at,
+          time: paper.time || '',
+          session: paper.session || '',
+          file_path: paper.file_path,
+          created_at: paper.created_at,
+          updated_at: paper.updated_at || paper.created_at,
+          faculty: paper.faculty,
+          faculty_code: paper.faculty_code,
+          difficulty: paper.difficulty,
+          total_questions: paper.total_questions,
+          total_marks: paper.total_marks,
+          average_score: paper.average_score,
+          topics: paper.topics || []
+        })),
+        pagination: response.data.pagination
+      };
+    } catch (error) {
+      console.error('Error fetching past papers:', error);
+      return { pastpapers: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } };
+    }
+  }
 
   // Get all past papers for a specific unit
   async getUnitPastPapers(unitId: string): Promise<PastPaper[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/pastpapers/unit/${unitId}`);
-      return response.data.pastpapers;
+      const result = await this.getAllPastPapers({ unit_id: unitId });
+      return result.pastpapers;
     } catch (error) {
-      console.error('Error fetching past papers:', error);
+      console.error('Error fetching unit past papers:', error);
       return [];
     }
   }
@@ -89,7 +148,34 @@ class PastPaperService {
   async getPastPaper(paperId: string): Promise<PastPaper | null> {
     try {
       const response = await axios.get(`${this.baseUrl}/pastpapers/${paperId}`);
-      return response.data.pastpaper;
+      const paper = response.data.data;
+      return {
+        _id: paper.id,
+        title: paper.title,
+        unit_id: paper.unit_id,
+        unit_name: paper.unit_name,
+        unit_code: paper.unit_code,
+        year: paper.year,
+        exam_type: paper.exam_type,
+        semester: paper.semester,
+        stream: paper.stream || 'Regular',
+        date: paper.created_at,
+        time: paper.time || '',
+        session: paper.session || '',
+        file_path: paper.file_path,
+        created_at: paper.created_at,
+        updated_at: paper.updated_at || paper.created_at,
+        faculty: paper.faculty,
+        faculty_code: paper.faculty_code,
+        difficulty: paper.difficulty,
+        total_questions: paper.total_questions,
+        total_marks: paper.total_marks,
+        average_score: paper.average_score,
+        topics: paper.topics || [],
+        instructions: paper.instructions || [],
+        questions: paper.questions || [],
+        sections: paper.sections || []
+      };
     } catch (error) {
       console.error('Error fetching past paper details:', error);
       return null;
@@ -111,13 +197,12 @@ class PastPaperService {
 
   // Upload a new past paper
   async uploadPastPaper(
-    unitId: string,
     formData: FormData,
     onProgress?: (percentage: number) => void
   ): Promise<{ success: boolean; message: string; pastpaper_id?: string }> {
     try {
       const response = await axios.post(
-        `${this.baseUrl}/pastpapers/unit/${unitId}/upload`,
+        `${this.baseUrl}/pastpapers/upload`,
         formData,
         {
           headers: {
@@ -134,8 +219,8 @@ class PastPaperService {
       
       return {
         success: true,
-        message: response.data.message,
-        pastpaper_id: response.data.pastpaper_id
+        message: response.data.message || 'Past paper uploaded successfully',
+        pastpaper_id: response.data.data?.id || response.data.pastpaper_id
       };
     } catch (error: any) {
       console.error('Error uploading past paper:', error);
@@ -146,11 +231,55 @@ class PastPaperService {
     }
   }
 
+  // Create a new past paper
+  async createPastPaper(paperData: Omit<PastPaper, '_id' | 'created_at' | 'updated_at'>): Promise<{ success: boolean; message: string; pastpaper?: PastPaper }> {
+    try {
+      const response = await axios.post(`${this.baseUrl}/pastpapers`, paperData);
+      
+      return {
+        success: true,
+        message: 'Past paper created successfully',
+        pastpaper: response.data.data
+      };
+    } catch (error: any) {
+      console.error('Error creating past paper:', error);
+      return {
+        success: false,
+        message: error.response?.data?.error || 'Error creating past paper'
+      };
+    }
+  }
+
+  // Update a past paper
+  async updatePastPaper(paperId: string, paperData: Partial<PastPaper>): Promise<{ success: boolean; message: string; pastpaper?: PastPaper }> {
+    try {
+      const response = await axios.put(`${this.baseUrl}/pastpapers/${paperId}`, paperData);
+      
+      return {
+        success: true,
+        message: 'Past paper updated successfully',
+        pastpaper: response.data.data
+      };
+    } catch (error: any) {
+      console.error('Error updating past paper:', error);
+      return {
+        success: false,
+        message: error.response?.data?.error || 'Error updating past paper'
+      };
+    }
+  }
+
   // Get all units with past papers
   async getUnitsWithPastPapers(): Promise<PastPaperUnit[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/pastpapers/units`);
-      return response.data.units;
+      const response = await axios.get(`${this.baseUrl}/units`);
+      return response.data.data?.map((unit: any) => ({
+        _id: unit.id || unit._id,
+        name: unit.name,
+        code: unit.code,
+        course_id: unit.course_id,
+        description: unit.description
+      })) || [];
     } catch (error) {
       console.error('Error fetching units with past papers:', error);
       return [];
@@ -160,8 +289,8 @@ class PastPaperService {
   // Search past papers
   async searchPastPapers(query: string): Promise<PastPaper[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/pastpapers/search?q=${encodeURIComponent(query)}`);
-      return response.data.pastpapers;
+      const result = await this.getAllPastPapers({ search: query });
+      return result.pastpapers;
     } catch (error) {
       console.error('Error searching past papers:', error);
       return [];
@@ -170,21 +299,18 @@ class PastPaperService {
 
   // Filter past papers by year, semester, or exam type
   async filterPastPapers(
-    unitId: string,
-    filters: { year?: string; semester?: string; exam_type?: string }
+    filters: { 
+      unit_id?: string; 
+      year?: string; 
+      semester?: string; 
+      exam_type?: string;
+      difficulty?: string;
+      faculty_code?: string;
+    }
   ): Promise<PastPaper[]> {
     try {
-      const queryParams = new URLSearchParams();
-      
-      if (filters.year) queryParams.append('year', filters.year);
-      if (filters.semester) queryParams.append('semester', filters.semester);
-      if (filters.exam_type) queryParams.append('exam_type', filters.exam_type);
-      
-      const response = await axios.get(
-        `${this.baseUrl}/pastpapers/unit/${unitId}/filter?${queryParams.toString()}`
-      );
-      
-      return response.data.pastpapers;
+      const result = await this.getAllPastPapers(filters);
+      return result.pastpapers;
     } catch (error) {
       console.error('Error filtering past papers:', error);
       return [];
