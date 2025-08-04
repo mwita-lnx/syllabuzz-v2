@@ -10,11 +10,13 @@ import { PastPaper } from '../services/pastpaper-service';
 interface PastPaperCardProps {
   paper: PastPaper;
   facultyColor?: string;
+  onClick?: () => void;
 }
 
 export const PastPaperCard: React.FC<PastPaperCardProps> = ({ 
   paper, 
-  facultyColor = '#FFD166'
+  facultyColor = '#FFD166',
+  onClick
 }) => {
   // Format date
   const formatDate = (dateString: string): string => {
@@ -58,6 +60,7 @@ export const PastPaperCard: React.FC<PastPaperCardProps> = ({
           borderColor: facultyColor, 
           borderLeftWidth: '4px' 
         }}
+        onClick={onClick}
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-bold title-font" style={{ color: facultyColor }}>
