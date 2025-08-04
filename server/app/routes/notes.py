@@ -12,6 +12,11 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, PointIdsList, MatchAny
 import fitz  # PyMuPDF for PDF processing
 from app import mongo, QDRANT_HOST, QDRANT_PORT
+from app.utils.validation import (
+    validate_objectid, validate_file_upload, validate_pagination,
+    validate_search_query, validate_json_body
+)
+from app.utils.error_handler import ValidationError, NotFoundError, AuthorizationError
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import hashlib
@@ -38,15 +43,35 @@ notes_bp = Blueprint('notes', __name__, url_prefix='/api/notes')
 
 class EmbeddingService:
     """Service for generating and caching embeddings using sentence-transformers"""
+    _instance = None
+    _model = None
+    
+    def __new__(cls, model_name='all-MiniLM-L6-v2', use_cache=True, cache_dir='embeddings_cache'):
+        if cls._instance is None:
+            cls._instance = super(EmbeddingService, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
     def __init__(self, model_name='all-MiniLM-L6-v2', use_cache=True, cache_dir='embeddings_cache'):
+        if self._initialized:
+            return
+            
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
         self.use_cache = use_cache
         self.cache_dir = cache_dir
+        self._initialized = True
         
         # Create cache directory if it doesn't exist
         if use_cache and not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
+    
+    @property
+    def model(self):
+        """Lazy load the model to save memory"""
+        if self._model is None:
+            current_app.logger.info(f"Loading embedding model: {self.model_name}")
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
     
     def get_embedding(self, text):
         """Get embedding for a text, using cache if enabled"""
@@ -168,14 +193,26 @@ def chunk_text(text, chunk_size=512, overlap=0.2):
 def get_notes(current_user):
     """Get all notes with optional filtering"""
     try:
-        # Extract query parameters
-        faculty = request.args.get('faculty')
-        note_type = request.args.get('type')
-        search_query = request.args.get('query')
-        unit_id = request.args.get('unit_id')
-        sort_by = request.args.get('sort_by', 'recent')  # Default sort by recent
-        page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 20))
+        # Extract and validate query parameters
+        faculty = request.args.get('faculty', '').strip()
+        note_type = request.args.get('type', '').strip()
+        search_query = request.args.get('query', '').strip()
+        unit_id = request.args.get('unit_id', '').strip()
+        sort_by = request.args.get('sort_by', 'recent')
+        
+        # Validate pagination
+        page, limit = validate_pagination(
+            request.args.get('page'), 
+            request.args.get('limit')
+        )
+        
+        # Validate search query if provided
+        if search_query:
+            search_query = validate_search_query(search_query)
+        
+        # Validate unit_id if provided
+        if unit_id:
+            unit_id = str(validate_objectid(unit_id, 'Unit ID'))
         
         # Build the query
         query = {}

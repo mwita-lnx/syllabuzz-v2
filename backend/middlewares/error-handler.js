@@ -1,6 +1,27 @@
 const httpStatus = require('http-status');
 const logger = require('../utils/logger');
 
+// Standardized response format
+const createResponse = (success, data = null, error = null, message = null, statusCode = 200) => {
+  const response = {
+    success,
+    timestamp: new Date().toISOString()
+  };
+
+  if (data !== null) response.data = data;
+  if (message) response.message = message;
+  if (error) {
+    response.error = {
+      message: error.message || error,
+      code: error.code || 'UNKNOWN_ERROR',
+      ...(process.env.NODE_ENV === 'development' && error.stack && { stack: error.stack }),
+      ...(error.details && { details: error.details })
+    };
+  }
+
+  return { response, statusCode };
+};
+
 /**
  * Global error handler middleware for Express
  * @param {Error} err - Error object
@@ -13,7 +34,11 @@ const errorHandler = (err, req, res, next) => {
   const logMessage = `${err.message || 'Unknown error'} - ${req.originalUrl} - ${req.method} - ${req.ip}`;
   logger.error(logMessage, { 
     service: 'syllabuzz-realtime-service', 
-    error: err 
+    error: err,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
   });
   
   // Set default status code - make sure it's a valid HTTP status code
@@ -24,21 +49,8 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 500; // Default to 500 if invalid
   }
   
-  // Customize response based on environment
-  const response = {
-    success: false,
-    error: err.message || 'Internal server error'
-  };
-  
-  // Add stack trace in development mode
-  if (process.env.NODE_ENV === 'development') {
-    response.stack = err.stack;
-    
-    // Add more debug info if available
-    if (err.details) {
-      response.details = err.details;
-    }
-  }
+  // Use standardized response format
+  const { response } = createResponse(false, null, err, null, statusCode);
   
   // Send the error response
   res.status(statusCode).json(response);
@@ -50,10 +62,12 @@ const errorHandler = (err, req, res, next) => {
  * @param {express.Response} res - Express response object
  */
 const notFoundHandler = (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: `Route not found: ${req.originalUrl}`
-  });
+  const { response } = createResponse(
+    false, 
+    null, 
+    { message: `Route not found: ${req.originalUrl}`, code: 'NOT_FOUND' }
+  );
+  res.status(404).json(response);
 };
 
 module.exports = {

@@ -70,7 +70,7 @@ async function startServer() {
     const io = setupSocket(server);
     
     // Start server
-    const port = config.port || process.env.PORT || 3000;
+    const port = config.port || process.env.PORT || 4000;
     // Change this part in your startServer function
 server.listen(port, '0.0.0.0', () => {
   logger.info(`Server running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);

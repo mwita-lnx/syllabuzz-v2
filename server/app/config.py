@@ -5,10 +5,10 @@ from datetime import timedelta
 class Config:
     """Base configuration"""
     # Flask settings
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'your_secret_key')
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your_secret_key')
-    REFRESH_SECRET_KEY = os.environ.get('REFRESH_SECRET_KEY', 'your_secret_key')
-    DEBUG = os.environ.get('FLASK_DEBUG', 'True') == 'True'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('JWT_SECRET_KEY', 'dev_secret_change_in_production')
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.environ.get('JWT_SECRET', 'dev_jwt_secret_change_in_production')
+    REFRESH_SECRET_KEY = os.environ.get('REFRESH_SECRET_KEY', 'dev_refresh_secret_change_in_production')
+    DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() in ('true', '1', 'yes')
     
     # MongoDB settings
     MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/syllabuzz')

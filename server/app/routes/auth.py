@@ -8,6 +8,7 @@ import jwt
 import bcrypt
 import re
 import redis
+import os
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -158,12 +159,29 @@ def generate_tokens(user_data):
 # Password validation
 def is_valid_password(password):
     """Check if password meets minimum requirements"""
-    # At least 8 characters, containing at least one number and one letter
-    if len(password) < 8:
-        return False
-    if not re.search(r'[A-Za-z]', password) or not re.search(r'\d', password):
-        return False
-    return True
+    min_length = int(os.environ.get('PASSWORD_MIN_LENGTH', 8))
+    
+    # Check minimum length
+    if len(password) < min_length:
+        return False, f"Password must be at least {min_length} characters long"
+    
+    # Check for at least one letter
+    if not re.search(r'[A-Za-z]', password):
+        return False, "Password must contain at least one letter"
+    
+    # Check for at least one number
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one number"
+    
+    # Check for at least one special character
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "Password must contain at least one special character"
+    
+    # Check for both uppercase and lowercase letters
+    if not re.search(r'[a-z]', password) or not re.search(r'[A-Z]', password):
+        return False, "Password must contain both uppercase and lowercase letters"
+    
+    return True, "Password is valid"
 
 @auth.route('/register', methods=['POST'])
 @limiter.limit("10 per hour")
@@ -195,10 +213,11 @@ def register():
             return create_response(success=False, error="Invalid email format", status_code=400)
         
         # Validate password strength
-        if not is_valid_password(data['password']):
+        is_valid, message = is_valid_password(data['password'])
+        if not is_valid:
             return create_response(
                 success=False, 
-                error="Password must be at least 8 characters and contain at least one letter and one number", 
+                error=message, 
                 status_code=400
             )
         
@@ -567,10 +586,11 @@ def change_password():
             return create_response(success=False, error="Current and new passwords are required", status_code=400)
         
         # Validate new password strength
-        if not is_valid_password(data['new_password']):
+        is_valid, message = is_valid_password(data['new_password'])
+        if not is_valid:
             return create_response(
                 success=False, 
-                error="New password must be at least 8 characters and contain at least one letter and one number", 
+                error=message, 
                 status_code=400
             )
         
@@ -736,10 +756,11 @@ def reset_password():
         new_password = data['new_password']
         
         # Validate new password strength
-        if not is_valid_password(new_password):
+        is_valid, message = is_valid_password(new_password)
+        if not is_valid:
             return create_response(
                 success=False, 
-                error="New password must be at least 8 characters and contain at least one letter and one number", 
+                error=message, 
                 status_code=400
             )
         

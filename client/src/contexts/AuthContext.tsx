@@ -59,7 +59,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: true,
+    isAuthenticated: false,
     user: null,
     token: null,
     loading: true,
@@ -125,7 +125,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
         }
       } else {
-        setAuthState((prev) => ({ ...prev, loading: false }));
+        setAuthState({
+          isAuthenticated: false,
+          user: null,
+          token: null,
+          loading: false,
+        });
       }
     };
 
@@ -180,8 +185,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Logout function
   const logout = () => {
     console.log("Logging out...");
-    // localStorage.removeItem('token');
-    // localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
     setAuthState({
       isAuthenticated: false,

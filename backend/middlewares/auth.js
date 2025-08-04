@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 // Set a consistent JWT secret - must match what the main authentication service uses
-const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || 'dev_jwt_secret_change_in_production';
 
 /**
  * Middleware to verify JWT tokens from the Authorization header

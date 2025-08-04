@@ -9,25 +9,25 @@ dotenv.config();
 const environments = {
   development: {
     mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/syllabuzz',
-    jwtSecret: process.env.JWT_SECRET || 'dev_jwt_secret',
+    jwtSecret: process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || 'dev_jwt_secret_change_in_production',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
-    port: process.env.PORT || 3000,
-    corsOrigins: process.env.CORS_ORIGINS?.split(',') || '*',
+    port: process.env.PORT || 4000,
+    corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:4000'],
     logLevel: process.env.LOG_LEVEL || 'debug'
   },
   test: {
-    mongoUri: process.env.TEST_MONGO_URI || 'mongodb://localhost:27017/syllabuzz',
-    jwtSecret: process.env.JWT_SECRET || 'test_jwt_secret',
+    mongoUri: process.env.TEST_MONGO_URI || 'mongodb://localhost:27017/syllabuzz_test',
+    jwtSecret: process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || 'test_jwt_secret_change_in_production',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
     port: process.env.PORT || 3001,
-    corsOrigins: process.env.CORS_ORIGINS?.split(',') || '*',
+    corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173'],
     logLevel: process.env.LOG_LEVEL || 'error'
   },
   production: {
-    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/syllabuzz',
-    jwtSecret: process.env.JWT_SECRET,
+    mongoUri: process.env.MONGO_URI,
+    jwtSecret: process.env.JWT_SECRET || process.env.JWT_SECRET_KEY,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    port: process.env.PORT || 3000,
+    port: process.env.PORT || 4000,
     corsOrigins: process.env.CORS_ORIGINS?.split(','),
     logLevel: process.env.LOG_LEVEL || 'info'
   }

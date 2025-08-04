@@ -9,19 +9,45 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
     try {
       const errorData = await response.json();
       console.error('API Error:', errorData);
-      throw new Error(errorData.error || errorData.message || 'An error occurred');
+      
+      // Handle different error formats
+      const errorMessage = errorData.error?.message || errorData.error || errorData.message || 'An error occurred';
+      const errorCode = errorData.error?.code || 'UNKNOWN_ERROR';
+      
+      const apiError = new Error(errorMessage) as any;
+      apiError.code = errorCode;
+      apiError.status = response.status;
+      apiError.details = errorData.error?.details;
+      
+      throw apiError;
     } catch (jsonError) {
       // If the response isn't valid JSON
       console.error('Response error:', response.statusText);
-      throw new Error(`${response.status}: ${response.statusText}`);
+      const error = new Error(`${response.status}: ${response.statusText}`) as any;
+      error.status = response.status;
+      throw error;
     }
   }
   
   try {
-    return await response.json();
+    const data = await response.json();
+    // Handle standardized response format
+    if (data.success === false) {
+      const errorMessage = data.error?.message || data.error || 'An error occurred';
+      const error = new Error(errorMessage) as any;
+      error.code = data.error?.code || 'API_ERROR';
+      error.details = data.error?.details;
+      throw error;
+    }
+    
+    // Return data field if it exists, otherwise return the whole response
+    return data.data !== undefined ? data.data : data;
   } catch (error) {
-    console.error('Error parsing response JSON:', error);
-    throw new Error('Invalid response format');
+    if (error instanceof Error && error.message.includes('Unexpected token')) {
+      console.error('Error parsing response JSON:', error);
+      throw new Error('Invalid response format');
+    }
+    throw error;
   }
 };
 
@@ -30,10 +56,82 @@ const getToken = (): string | null => {
   return localStorage.getItem('token');
 };
 
-// Generic fetch function with types
+// Get refresh token
+const getRefreshToken = (): string | null => {
+  return localStorage.getItem('refreshToken');
+};
+
+// Token refresh logic
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: Error) => void;
+}> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token!);
+    }
+  });
+  
+  failedQueue = [];
+};
+
+const refreshAuthToken = async (): Promise<string> => {
+  const refreshToken = getRefreshToken();
+  
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+  
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      failedQueue.push({ resolve, reject });
+    });
+  }
+  
+  isRefreshing = true;
+  
+  try {
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+    
+    const data = await response.json();
+    const newToken = data.data?.token || data.token;
+    
+    if (!newToken) {
+      throw new Error('No token in refresh response');
+    }
+    
+    localStorage.setItem('token', newToken);
+    processQueue(null, newToken);
+    
+    return newToken;
+  } catch (error) {
+    processQueue(error as Error);
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    throw error;
+  } finally {
+    isRefreshing = false;
+  }
+};
+
+// Generic fetch function with types and token refresh
 export const fetchData = async <T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryCount = 0
 ): Promise<T> => {
   const token = getToken();
   
@@ -54,6 +152,34 @@ export const fetchData = async <T>(
       ...options,
       headers
     });
+    
+    // If unauthorized and we have a refresh token, try to refresh
+    if (response.status === 401 && retryCount === 0 && getRefreshToken()) {
+      try {
+        console.log('Token expired, attempting refresh...');
+        const newToken = await refreshAuthToken();
+        
+        // Retry the request with new token
+        const newHeaders = {
+          ...headers,
+          Authorization: `Bearer ${newToken}`
+        };
+        
+        const retryResponse = await fetch(`${API_URL}${endpoint}`, {
+          ...options,
+          headers: newHeaders
+        });
+        
+        return handleResponse<T>(retryResponse);
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        // Redirect to login or emit auth error event
+        window.dispatchEvent(new CustomEvent('auth:error', { 
+          detail: { message: 'Session expired, please login again' }
+        }));
+        throw refreshError;
+      }
+    }
     
     return handleResponse<T>(response);
   } catch (error) {

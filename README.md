@@ -1,34 +1,64 @@
-# SyllaBuzz - University Course Management System
+# 🎓 SyllaBuzz - AI-Powered University Learning Platform
 
-SyllaBuzz is a comprehensive application for universities to manage courses, units, continuous assessment tests (CATs), and exams. The system uses NLP and embedding techniques to extract questions from past papers, group similar questions, and link them to relevant sections in lecture notes.
+SyllaBuzz is a comprehensive, AI-powered learning platform for universities that combines course management, semantic content analysis, and collaborative study tools. The system uses advanced NLP and machine learning techniques to enhance the educational experience for both students and educators.
 
-## Core Features
+## ✨ Core Features
 
-1. **Course and Unit Management**: Organize university curriculum by courses and units
-2. **Past Paper Analysis**: Extract questions from past exam papers and CATs using NLP
-3. **Semantic Search**: Find related questions and notes using sentence transformer embeddings
-4. **Question Grouping**: Identify similar questions that have appeared in multiple examss
-5. **Note Linking**: Connect questions to relevant sections in lecture notes
-6. **Search Functionality**: Semantic search across questions and notes
+### 📚 **Academic Content Management**
+- **Course & Unit Organization**: Structured curriculum management across faculties
+- **Smart PDF Processing**: AI-powered extraction and analysis of academic documents
+- **Semantic Search**: Find related content using advanced vector similarity search
+- **Note Linking**: Intelligent connections between questions and relevant study materials
 
-## System Architecture
+### 🤖 **AI-Powered Analysis**
+- **Question Extraction**: Automatically extract questions from past papers and exams
+- **Content Similarity**: Group similar questions and identify frequently tested concepts
+- **Semantic Embeddings**: Using `sentence-transformers/all-MiniLM-L6-v2` for content understanding
+- **Smart Recommendations**: AI-driven content suggestions based on user behavior
 
-### Backend (Flask + MongoDB)
+### 👥 **Collaborative Study Tools**
+- **Real-time Revision Rooms**: Live collaborative study sessions with chat and polls
+- **Progress Tracking**: Monitor individual and group study progress
+- **Resource Sharing**: Share and discuss academic materials in real-time
+- **Study Timers**: Coordinated study sessions with timer functionality
 
-- **Flask API**: RESTful API for all operations
-- **MongoDB**: NoSQL database for storing courses, units, questions, and notes
-- **JWT Authentication**: Secure authentication for students and instructors
+### 🔐 **Security & User Management**
+- **JWT Authentication**: Secure token-based authentication with refresh tokens
+- **Role-based Access**: Different permissions for students, instructors, and administrators
+- **Rate Limiting**: Protection against abuse with intelligent rate limiting
+- **Data Validation**: Comprehensive input validation and sanitization
 
-### NLP Components
+## 🏗️ System Architecture
 
-- **Sentence Transformers**: For creating embeddings (`sentence-transformers/all-MiniLM-L6-v2`)
-- **PDF Extraction**: Extract structured content from PDFs (PyMuPDF)
-- **Question Processing**: Analyze and group similar questions
-- **Note Processing**: Extract sections from lecture notes and link to questions
+SyllaBuzz uses a modern microservices architecture with three main components:
 
-### Frontend (React - Not Implemented Yet)
+### 🎨 **Frontend (React + TypeScript)**
+- **Modern React 19** with TypeScript for type safety
+- **Tailwind CSS + Radix UI** for responsive, accessible design
+- **Real-time Communication** via Socket.io
+- **State Management** with React Context and custom hooks
+- **Error Boundaries** for graceful error handling
 
-The frontend will be implemented as a React application that consumes the APIs provided by the backend.
+### 🔧 **Backend Services**
+
+#### **Node.js/Express Service** (Real-time & Collaboration)
+- **Socket.io** for real-time features (chat, polls, live updates)
+- **MongoDB** integration for revision rooms and messages
+- **JWT Authentication** middleware
+- **Rate limiting** and security middleware
+
+#### **Python/Flask Service** (AI & Content Processing)
+- **Flask API** for content processing and analysis
+- **MongoDB** for document storage and retrieval
+- **Qdrant Vector Database** for semantic search capabilities
+- **PyMuPDF** for PDF text extraction and processing
+- **Sentence Transformers** for generating semantic embeddings
+
+### 🗄️ **Data Layer**
+- **MongoDB**: Primary database for structured data
+- **Qdrant**: Vector database for semantic search
+- **Redis**: Caching and session management
+- **File Storage**: Secure file upload and management
 
 ## Setup and Installation
 
