@@ -17,6 +17,10 @@ import { FacultySelector } from '@/components/FacultySelector';
 // Import types
 import { RevisionRoom, Faculty } from '@/types/index3';
 
+// Import services
+import { getAllRevisionRooms, searchRevisionRooms } from '@/services/revision-room-service';
+import { getFacultiesWithFallback } from '@/services/faculty-service';
+
 interface RoomCardProps {
   room: RevisionRoom;
   onClick: () => void;
@@ -77,89 +81,29 @@ export default function RevisionRoomListPage() {
 
   useEffect(() => {
     fetchRooms();
-    
-    const mockFaculties: Faculty[] = [
-      { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
-      { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
-      { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
-      { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
-      { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
-    ];
-    setFaculties(mockFaculties);
+    fetchFaculties();
   }, []);
+
+  const fetchFaculties = async () => {
+    try {
+      const facultiesData = await getFacultiesWithFallback();
+      setFaculties(facultiesData);
+    } catch (error) {
+      console.error('Error fetching faculties:', error);
+    }
+  };
 
   const fetchRooms = async () => {
     try {
       setIsLoading(true);
-      
-      // Mock data for demonstration
-      const mockRooms: RevisionRoom[] = [
-        {
-          id: '1',
-          _id: '1',
-          name: 'CS101 Algorithm Study Group',
-          description: 'Study group focused on sorting and searching algorithms for the upcoming midterm exam.',
-          facultyCode: 'sci',
-          faculty: 'Science',
-          unit_id: '1',
-          unit_code: 'CS101',
-          unitName: 'Introduction to Computer Science',
-          topic: 'Algorithms and Data Structures',
-          created_by: 'user1',
-          created_at: '2024-03-10T10:00:00Z',
-          is_active: true,
-          participants: [],
-          memberCount: 12,
-          activeMembers: 5,
-          sessionActive: true,
-          tags: ['algorithms', 'midterm', 'programming']
-        },
-        {
-          id: '2',
-          _id: '2',
-          name: 'Marketing Strategy Discussion',
-          description: 'Collaborative study session for digital marketing concepts and case studies.',
-          facultyCode: 'bus',
-          faculty: 'Business',
-          unit_id: '2',
-          unit_code: 'MKT205',
-          unitName: 'Digital Marketing',
-          topic: 'Marketing Strategy',
-          created_by: 'user2',
-          created_at: '2024-03-09T14:30:00Z',
-          is_active: true,
-          participants: [],
-          memberCount: 8,
-          activeMembers: 3,
-          sessionActive: false,
-          tags: ['marketing', 'strategy', 'case-study']
-        },
-        {
-          id: '3',
-          _id: '3',
-          name: 'Anatomy Review Session',
-          description: 'Review of human anatomy systems before final examination.',
-          facultyCode: 'med',
-          faculty: 'Medicine',
-          unit_id: '3',
-          unit_code: 'MED110',
-          unitName: 'Human Anatomy',
-          topic: 'Body Systems',
-          created_by: 'user3',
-          created_at: '2024-03-08T09:15:00Z',
-          is_active: false,
-          participants: [],
-          memberCount: 15,
-          activeMembers: 0,
-          sessionActive: false,
-          tags: ['anatomy', 'final', 'medicine']
-        }
-      ];
-
-      setRooms(mockRooms);
-      setFilteredRooms(mockRooms);
+      const roomsResponse = await getAllRevisionRooms({ limit: 50, sort: 'recent' });
+      const roomsData = roomsResponse.data || roomsResponse.items || [];
+      setRooms(roomsData);
+      setFilteredRooms(roomsData);
     } catch (error) {
       console.error('Error fetching rooms:', error);
+      setRooms([]);
+      setFilteredRooms([]);
     } finally {
       setIsLoading(false);
     }

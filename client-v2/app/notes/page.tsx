@@ -16,7 +16,11 @@ import { NoteCard } from '@/components/NoteCard';
 import { FacultySelector } from '@/components/FacultySelector';
 
 // Import types
-import { Note, Faculty } from '@/types/index2';
+import { Note, Faculty } from '@/types';
+
+// Import services
+import { getAllNotes, searchNotes } from '@/services/note-service';
+import { getFacultiesWithFallback } from '@/services/faculty-service';
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -30,96 +34,36 @@ export default function NotesPage() {
   
   const router = useRouter();
 
-  // Mock data for demonstration
+  // Fetch initial data
   useEffect(() => {
-    const mockNotes: Note[] = [
-      {
-        _id: '1',
-        title: 'Understanding Sorting Algorithms',
-        description: 'A comprehensive guide to common sorting algorithms and their time complexity analysis.',
-        url: '#',
-        source_name: 'Science Notes',
-        published_at: '2024-03-10',
-        type: 'notes' as const,
-        faculty: 'Science',
-        facultyCode: 'sci',
-        categories: ['algorithms', 'computer science'],
-      },
-      {
-        _id: '2',
-        title: 'Customer Journey Mapping in Digital Age',
-        description: 'How to effectively map customer journeys across multiple digital touchpoints.',
-        url: '#',
-        source_name: 'Business Review',
-        published_at: '2024-03-08',
-        type: 'notes' as const,
-        faculty: 'Business',
-        facultyCode: 'bus',
-        categories: ['marketing', 'customer experience'],
-      },
-      {
-        _id: '3',
-        title: 'Cardiac Muscle Physiology',
-        description: 'Detailed examination of cardiac muscle structure and function.',
-        url: '#',
-        source_name: 'Medical Journal',
-        published_at: '2024-03-05',
-        type: 'academic' as const,
-        faculty: 'Medicine',
-        facultyCode: 'med',
-        categories: ['anatomy', 'physiology'],
-      },
-      {
-        _id: '4',
-        title: 'Modernist Poetry Analysis',
-        description: 'Critical analysis of key modernist poetic works and their literary significance.',
-        url: '#',
-        source_name: 'Arts Review',
-        published_at: '2024-03-01',
-        type: 'notes' as const,
-        faculty: 'Arts',
-        facultyCode: 'arts',
-        categories: ['literature', 'poetry'],
-      },
-      {
-        _id: '5',
-        title: 'Neural Networks Fundamentals',
-        description: 'Introduction to neural network architectures and applications in machine learning.',
-        url: '#',
-        source_name: 'CS Research',
-        published_at: '2024-02-25',
-        type: 'academic' as const,
-        faculty: 'Science',
-        facultyCode: 'sci',
-        categories: ['machine learning', 'AI'],
-      },
-      {
-        _id: '6',
-        title: 'Bridge Design Principles',
-        description: 'Core principles and methodologies in modern bridge design and construction.',
-        url: '#',
-        source_name: 'Engineering Today',
-        published_at: '2024-02-20',
-        type: 'notes' as const,
-        faculty: 'Engineering',
-        facultyCode: 'eng',
-        categories: ['structural engineering', 'civil'],
-      }
-    ];
-
-    const mockFaculties: Faculty[] = [
-      { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
-      { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
-      { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
-      { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
-      { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
-    ];
-
-    setNotes(mockNotes);
-    setFilteredNotes(mockNotes);
-    setFaculties(mockFaculties);
-    setIsLoading(false);
+    fetchNotes();
+    fetchFaculties();
   }, []);
+
+  const fetchNotes = async () => {
+    try {
+      setIsLoading(true);
+      const notesResponse = await getAllNotes({ limit: 50, sort: 'recent' });
+      const notesData = notesResponse.notes || notesResponse.data || notesResponse.items || [];
+      setNotes(notesData);
+      setFilteredNotes(notesData);
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+      setNotes([]);
+      setFilteredNotes([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchFaculties = async () => {
+    try {
+      const facultiesData = await getFacultiesWithFallback();
+      setFaculties(facultiesData);
+    } catch (error) {
+      console.error('Error fetching faculties:', error);
+    }
+  };
 
   // Filter and sort notes
   useEffect(() => {

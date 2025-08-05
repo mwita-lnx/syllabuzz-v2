@@ -21,7 +21,12 @@ import { NoteCard } from '@/components/NoteCard';
 import { FacultySelector } from '@/components/FacultySelector';
 
 // Import types
-import { Unit, Note, User, Faculty } from '@/types/index2';
+import { Unit, Note, User, Faculty } from '@/types';
+
+// Import services
+import { getAllNotes, getTrendingNotes } from '@/services/note-service';
+import { getAllUnits, getFeaturedUnits } from '@/services/unit-service';
+import { getFacultiesWithFallback } from '@/services/faculty-service';
 
 export default function Home() {
   // State management
@@ -53,29 +58,20 @@ export default function Home() {
   // Fetch initial data
   useEffect(() => {
     fetchData();
+    fetchFaculties();
     
-    // Mock user for demo
+    // Mock user for demo (TODO: Replace with actual user authentication)
     setUser({
-      id: '1234',
+      _id: '1234',
       name: 'John Doe',
       email: 'john@example.com',
-      units: [],
-      faculty: 'Science'
+      role: 'student'
     });
-    
-    // Mock faculties
-    setFaculties([
-      { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
-      { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
-      { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
-      { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
-      { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
-    ]);
   }, []);
   
   const fetchData = async () => {
     try {
-      // Simulate API calls with mock data for demo
+      setIsLoading(true);
       await Promise.all([
         fetchUnits(),
         fetchNotes(),
@@ -88,138 +84,49 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+
+  const fetchFaculties = async () => {
+    try {
+      const facultiesData = await getFacultiesWithFallback();
+      setFaculties(facultiesData);
+    } catch (error) {
+      console.error('Error fetching faculties:', error);
+    }
+  };
   
   // Fetch units
   const fetchUnits = async (): Promise<void> => {
     try {
-      // Mock API call
-      const mockUnits: Unit[] = [
-        {
-          _id: '1',
-          name: 'Introduction to Computer Science',
-          code: 'CS101',
-          description: 'Fundamentals of computer science including algorithms, data structures, and programming concepts.',
-          faculty: 'Science',
-          facultyCode: 'sci',
-          keywords: ['programming', 'algorithms', 'data structures'],
-          created_at: '2024-01-01'
-        },
-        {
-          _id: '2',
-          name: 'Digital Marketing',
-          code: 'MKT205',
-          description: 'Introduction to digital marketing strategies, social media, and online advertising techniques.',
-          faculty: 'Business',
-          facultyCode: 'bus',
-          keywords: ['marketing', 'digital', 'social media'],
-          created_at: '2024-01-15'
-        },
-        {
-          _id: '3',
-          name: 'Human Anatomy',
-          code: 'MED110',
-          description: 'Study of the structure of the human body and its parts and their relationships to one another.',
-          faculty: 'Medicine',
-          facultyCode: 'med',
-          keywords: ['anatomy', 'physiology', 'health'],
-          created_at: '2024-02-01'
-        }
-      ];
-      
-      setUnits(mockUnits);
+      const featuredUnitsData = await getFeaturedUnits(6);
+      setUnits(featuredUnitsData);
     } catch (error) {
       console.error('Error fetching units:', error);
+      // Fallback to empty array
+      setUnits([]);
     }
   };
   
   // Fetch notes
   const fetchNotes = async (): Promise<void> => {
     try {
-      // Mock API call
-      const mockNotes: Note[] = [
-        {
-          _id: '1',
-          title: 'Understanding Sorting Algorithms',
-          description: 'A comprehensive guide to common sorting algorithms and their time complexity analysis.',
-          url: '#',
-          source_name: 'Science Notes',
-          published_at: '2024-03-10',
-          type: 'notes' as const,
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['algorithms', 'computer science'],
-          relevance_score: 0.95
-        },
-        {
-          _id: '2',
-          title: 'Customer Journey Mapping in Digital Age',
-          description: 'How to effectively map customer journeys across multiple digital touchpoints.',
-          url: '#',
-          source_name: 'Business Review',
-          published_at: '2024-03-08',
-          type: 'notes' as const,
-          faculty: 'Business',
-          facultyCode: 'bus',
-          categories: ['marketing', 'customer experience'],
-          relevance_score: 0.88
-        },
-        {
-          _id: '3',
-          title: 'Cardiac Muscle Physiology',
-          description: 'Detailed examination of cardiac muscle structure and function.',
-          url: '#',
-          source_name: 'Medical Journal',
-          published_at: '2024-03-05',
-          type: 'academic' as const,
-          faculty: 'Medicine',
-          facultyCode: 'med',
-          categories: ['anatomy', 'physiology'],
-          relevance_score: 0.92
-        }
-      ];
-      
-      setNotes(mockNotes);
+      const notesResponse = await getAllNotes({ limit: 6, sort: 'recent' });
+      setNotes(notesResponse.notes || notesResponse.data || notesResponse.items || []);
     } catch (error) {
       console.error('Error fetching notes:', error);
+      // Fallback to empty array
+      setNotes([]);
     }
   };
   
   // Fetch trending
   const fetchTrending = async (): Promise<void> => {
     try {
-      // Mock API call - for demo, using same notes but different order
-      const mockTrending = [
-        {
-          _id: '1',
-          title: 'Understanding Sorting Algorithms',
-          description: 'A comprehensive guide to common sorting algorithms and their time complexity analysis.',
-          url: '#',
-          source_name: 'Science Notes',
-          published_at: '2024-03-10',
-          type: 'notes' as const,
-          faculty: 'Science',
-          facultyCode: 'sci',
-          categories: ['algorithms', 'computer science'],
-          relevance_score: 0.95
-        },
-        {
-          _id: '3',
-          title: 'Cardiac Muscle Physiology',
-          description: 'Detailed examination of cardiac muscle structure and function.',
-          url: '#',
-          source_name: 'Medical Journal',
-          published_at: '2024-03-05',
-          type: 'academic' as const,
-          faculty: 'Medicine',
-          facultyCode: 'med',
-          categories: ['anatomy', 'physiology'],
-          relevance_score: 0.92
-        }
-      ];
-      
-      setTrendingNotes(mockTrending);
+      const trendingNotesData = await getTrendingNotes(4);
+      setTrendingNotes(trendingNotesData);
     } catch (error) {
       console.error('Error fetching trending:', error);
+      // Fallback to empty array
+      setTrendingNotes([]);
     }
   };
   

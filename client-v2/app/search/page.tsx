@@ -17,7 +17,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { FacultySelector } from '@/components/FacultySelector';
 
 // Import types
-import { Note, Faculty } from '@/types/index2';
+import { Note, Faculty } from '@/types';
 import { SearchResult } from '@/types';
 
 function SearchPageContent() {

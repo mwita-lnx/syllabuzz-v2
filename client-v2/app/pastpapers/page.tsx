@@ -27,7 +27,8 @@ import { PastPaperUploadDialog } from '@/components/PastPaperUploadDialog';
 import { pastPaperService, PastPaper, PastPaperUnit } from '@/services/pastpaper-service';
 
 // Import types
-import { Faculty } from '@/types/index2';
+import { Faculty } from '@/types';
+import { getFacultiesWithFallback } from '@/services/faculty-service';
 import toast from 'react-hot-toast';
 
 // Animation component for transitions
@@ -89,16 +90,17 @@ export default function PastPapersPage() {
   // Fetch data on component mount
   useEffect(() => {
     fetchData();
-    
-    // Mock faculties
-    setFaculties([
-      { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
-      { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
-      { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
-      { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
-      { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
-    ]);
+    fetchFaculties();
   }, []);
+
+  const fetchFaculties = async () => {
+    try {
+      const facultiesData = await getFacultiesWithFallback();
+      setFaculties(facultiesData);
+    } catch (error) {
+      console.error('Error fetching faculties:', error);
+    }
+  };
   
   // Apply filters when dependencies change
   useEffect(() => {

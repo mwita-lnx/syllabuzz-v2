@@ -29,7 +29,7 @@ import { PastPaperCard } from '@/components/PastPaperCard';
 import NoteSearchComponent from '@/components/NoteSearchComponent';
 
 // Import types
-import { Unit, Note } from '@/types/index2';
+import { Unit, Note } from '@/types';
 import { PastPaper } from '@/types';
 
 const ExternalLink: React.FC<{ className?: string }> = ({ className }) => <Link2 className={className} />;

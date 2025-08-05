@@ -27,7 +27,7 @@ import { MainLayout } from '@/components/MainLayout';
 import PDFViewer from '@/components/PDFveiwer';
 
 // Import types
-import { Note } from '@/types/index2';
+import { Note } from '@/types';
 import { Reference, Highlight, Bookmark } from '@/types';
 
 export default function NoteDetailPage() {

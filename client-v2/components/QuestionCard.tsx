@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Bookmark, MessageCircle, Star, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
-// import { Question } from '../types/index2'; // Type not available
+// import { Question } from '../types'; // Type not available
 type Question = any; // Temporary fix for build
 import toast from 'react-hot-toast';
 

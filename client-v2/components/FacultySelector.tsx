@@ -3,7 +3,7 @@ import { Check } from 'lucide-react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 // Import types
-import { Faculty } from '../types/index2';
+import { Faculty } from '../types';
 
 interface FacultySelectorProps {
   faculties: Faculty[];

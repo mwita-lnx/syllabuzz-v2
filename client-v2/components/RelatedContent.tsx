@@ -26,6 +26,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SearchComponent from './SearchComponent';
 
+// Import services
+import { getRelatedNotes, searchNotes } from '@/services/note-service';
+import { pastPaperService } from '@/services/pastpaper-service';
+
 interface RelatedItem {
   id: string;
   title: string;
@@ -69,53 +73,101 @@ const RelatedContent: React.FC<RelatedContentProps> = ({
   }, [sourceId, sourceType]);
   
   // Handle search functionality
-  const handleSearch = (query: string) => {
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
-    // In a real implementation, you would search across content here
-    // For now we'll just simulate loading
+    if (!query.trim()) {
+      fetchRelatedContent();
+      return;
+    }
+
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      // Search for notes if source is not a note
+      if (sourceType !== 'note') {
+        const searchedNotes = await searchNotes(query, { limit: maxItems });
+        const notesItems = searchedNotes.map(note => ({
+          id: note._id,
+          title: note.title,
+          type: 'note' as const,
+          similarity: note.relevance_score || 0.8,
+          description: note.description,
+          tags: note.categories
+        }));
+        setRelatedNotes(notesItems);
+      }
+
+      // Search for past papers if source is not a past paper
+      if (sourceType !== 'pastpaper') {
+        const searchedPapers = await pastPaperService.searchPastPapers(query);
+        const papersItems = searchedPapers.slice(0, maxItems).map(paper => ({
+          id: paper._id,
+          title: paper.title,
+          type: 'pastpaper' as const,
+          similarity: 0.8,
+          year: paper.year,
+          exam_type: paper.exam_type,
+          unit_name: paper.unit_name,
+          unit_code: paper.unit_code
+        }));
+        setRelatedPastPapers(papersItems);
+      }
+    } catch (error) {
+      console.error('Error searching related content:', error);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
   
-  // Fetch related content (simulated API call)
+  // Fetch related content
   const fetchRelatedContent = async () => {
     setIsLoading(true);
     
-    // In a real implementation, you would fetch data from your API
-    // For now, let's simulate an API call with setTimeout
-    setTimeout(() => {
-      // Generate mock related notes
+    try {
+      // Fetch related notes if source is not a note
       if (sourceType !== 'note') {
-        const mockNotes = Array.from({ length: Math.floor(Math.random() * 5) + 2 }, (_, i) => ({
-          id: `note-${i}`,
-          title: `Related Note ${i + 1} about ${sourceType === 'pastpaper' ? 'this past paper' : 'this question'}`,
-          type: 'note' as const,
-          similarity: Math.random() * 0.5 + 0.5, // 0.5-1.0
-          description: 'This note contains content related to this material...',
-          tags: ['Topic 1', 'Topic 2']
-        }));
-        setRelatedNotes(mockNotes);
+        try {
+          const relatedNotesData = await getRelatedNotes(sourceId, maxItems);
+          const notesItems = relatedNotesData.map(note => ({
+            id: note._id,
+            title: note.title,
+            type: 'note' as const,
+            similarity: note.relevance_score || 0.8,
+            description: note.description,
+            tags: note.categories
+          }));
+          setRelatedNotes(notesItems);
+        } catch (error) {
+          console.error('Error fetching related notes:', error);
+          setRelatedNotes([]);
+        }
       }
       
-      // Generate mock related past papers
+      // Fetch related past papers if source is not a past paper
       if (sourceType !== 'pastpaper') {
-        const mockPapers = Array.from({ length: Math.floor(Math.random() * 5) + 2 }, (_, i) => ({
-          id: `paper-${i}`,
-          title: `${Math.round(2015 + Math.random() * 8)} ${['Final', 'Midterm', 'CAT'][Math.floor(Math.random() * 3)]} Exam`,
-          type: 'pastpaper' as const,
-          similarity: Math.random() * 0.5 + 0.5, // 0.5-1.0
-          year: `${Math.round(2015 + Math.random() * 8)}`,
-          exam_type: ['Final', 'Midterm', 'CAT'][Math.floor(Math.random() * 3)],
-          unit_name: 'Course Name',
-          unit_code: 'CS101'
-        }));
-        setRelatedPastPapers(mockPapers);
+        try {
+          // For now, get recent past papers since we don't have a specific related papers endpoint
+          const allPapers = await pastPaperService.getAllPastPapers({ limit: maxItems });
+          const papersItems = allPapers.pastpapers.map(paper => ({
+            id: paper._id,
+            title: paper.title,
+            type: 'pastpaper' as const,
+            similarity: 0.8,
+            year: paper.year,
+            exam_type: paper.exam_type,
+            unit_name: paper.unit_name,
+            unit_code: paper.unit_code
+          }));
+          setRelatedPastPapers(papersItems);
+        } catch (error) {
+          console.error('Error fetching related past papers:', error);
+          setRelatedPastPapers([]);
+        }
       }
-      
+    } catch (error) {
+      console.error('Error fetching related content:', error);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
   
   // Handle item selection

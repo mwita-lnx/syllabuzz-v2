@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'react-hot-toast';
-import { Note } from '../types/index2';
+import { Note } from '../types';
 
 interface NoteCardProps {
   note: Note;

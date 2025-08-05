@@ -17,7 +17,11 @@ import { UnitCard } from '@/components/UnitCard';
 import { FacultySelector } from '@/components/FacultySelector';
 
 // Import types
-import { Unit, Faculty } from '@/types/index2';
+import { Unit, Faculty } from '@/types';
+
+// Import services
+import { getAllUnits, searchUnits } from '@/services/unit-service';
+import { getFacultiesWithFallback } from '@/services/faculty-service';
 
 export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
@@ -29,84 +33,36 @@ export default function UnitsPage() {
   
   const router = useRouter();
 
-  // Mock data for demonstration
+  // Fetch initial data
   useEffect(() => {
-    const mockUnits: Unit[] = [
-      {
-        _id: '1',
-        name: 'Introduction to Computer Science',
-        code: 'CS101',
-        description: 'Fundamentals of computer science including algorithms, data structures, and programming concepts.',
-        faculty: 'Science',
-        facultyCode: 'sci',
-        keywords: ['programming', 'algorithms', 'data structures'],
-        created_at: '2024-01-01'
-      },
-      {
-        _id: '2',
-        name: 'Digital Marketing',
-        code: 'MKT205',
-        description: 'Introduction to digital marketing strategies, social media, and online advertising techniques.',
-        faculty: 'Business',
-        facultyCode: 'bus',
-        keywords: ['marketing', 'digital', 'social media'],
-        created_at: '2024-01-15'
-      },
-      {
-        _id: '3',
-        name: 'Human Anatomy',
-        code: 'MED110',
-        description: 'Study of the structure of the human body and its parts and their relationships to one another.',
-        faculty: 'Medicine',
-        facultyCode: 'med',
-        keywords: ['anatomy', 'physiology', 'health'],
-        created_at: '2024-02-01'
-      },
-      {
-        _id: '4',
-        name: 'Modern Literature',
-        code: 'LIT303',
-        description: 'Exploration of 20th and 21st century literature across different genres and cultural contexts.',
-        faculty: 'Arts',
-        facultyCode: 'arts',
-        keywords: ['literature', 'fiction', 'poetry'],
-        created_at: '2024-02-15'
-      },
-      {
-        _id: '5',
-        name: 'Machine Learning',
-        code: 'CS405',
-        description: 'Introduction to machine learning algorithms, neural networks, and data analysis techniques.',
-        faculty: 'Science',
-        facultyCode: 'sci',
-        keywords: ['AI', 'algorithms', 'data science'],
-        created_at: '2024-03-01'
-      },
-      {
-        _id: '6',
-        name: 'Structural Engineering',
-        code: 'ENG220',
-        description: 'Principles of structural analysis, design of buildings and infrastructure.',
-        faculty: 'Engineering',
-        facultyCode: 'eng',
-        keywords: ['structures', 'mechanics', 'design'],
-        created_at: '2024-03-15'
-      }
-    ];
-
-    const mockFaculties: Faculty[] = [
-      { id: '1', name: 'Science', code: 'sci', color: '#FF6B6B' },
-      { id: '2', name: 'Arts', code: 'arts', color: '#4ECDC4' },
-      { id: '3', name: 'Business', code: 'bus', color: '#FFD166' },
-      { id: '4', name: 'Engineering', code: 'eng', color: '#6A0572' },
-      { id: '5', name: 'Medicine', code: 'med', color: '#06D6A0' }
-    ];
-
-    setUnits(mockUnits);
-    setFilteredUnits(mockUnits);
-    setFaculties(mockFaculties);
-    setIsLoading(false);
+    fetchUnits();
+    fetchFaculties();
   }, []);
+
+  const fetchUnits = async () => {
+    try {
+      setIsLoading(true);
+      const unitsResponse = await getAllUnits({ limit: 50, sort: 'name' });
+      const unitsData = unitsResponse.units || unitsResponse.data || unitsResponse.items || [];
+      setUnits(unitsData);
+      setFilteredUnits(unitsData);
+    } catch (error) {
+      console.error('Error fetching units:', error);
+      setUnits([]);
+      setFilteredUnits([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchFaculties = async () => {
+    try {
+      const facultiesData = await getFacultiesWithFallback();
+      setFaculties(facultiesData);
+    } catch (error) {
+      console.error('Error fetching faculties:', error);
+    }
+  };
 
   // Filter units based on search and faculty
   useEffect(() => {

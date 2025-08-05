@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
 // Import types
-import { Unit } from '../types/index2';
+import { Unit } from '../types';
 
 interface UnitCardProps {
   unit: Unit;
